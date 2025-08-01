@@ -78,7 +78,7 @@ ROOT_URLCONF = 'backend.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [os.path.join(BASE_DIR, 'templates')],  # Adjust path if needed
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -137,15 +137,22 @@ USE_TZ = True
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
+import os
 
+
+
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 STATIC_URL = '/static/'
-if DEBUG:
+STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
 
-    STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
 
-else:
-
-    STATIC_ROOT = os.path.join(BASE_DIR, 'static')
+#if DEBUG:
+#
+#    STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
+#
+#else:
+#
+#    STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 
 
 # Default primary key field type
@@ -156,3 +163,5 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOWS_CREDENTIALS = True
+
+print("STATICFILES_DIRS path:", BASE_DIR / "static")

@@ -4,6 +4,11 @@ from rest_framework.exceptions import PermissionDenied
 from .models import Note, Blog
 from .serializers import NoteSerializer, BlogSerializer, UserSerializer, UserCreateSerializer
 
+from django.views.generic import TemplateView
+
+class ReactAppView(TemplateView):
+    template_name = "index.html"
+
 
 class NoteListCreate(generics.ListCreateAPIView):
     serializer_class = NoteSerializer
