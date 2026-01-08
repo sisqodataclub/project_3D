@@ -1,0 +1,22 @@
+services:
+  frontend:
+    build: ./frontend
+    container_name: franciscodes-frontend
+    restart: always
+    expose:
+      - "80"   # React app built into Nginx runs on port 80 inside the container
+    networks:
+      - proxy_network
+
+  backend:
+    build: ./backend
+    container_name: franciscodes-backend
+    restart: always
+    expose:
+      - "8080"  # Django app internal port
+    networks:
+      - proxy_network
+
+networks:
+  proxy_network:
+    external: true
