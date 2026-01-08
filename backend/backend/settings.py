@@ -37,6 +37,7 @@ CSRF_TRUSTED_ORIGINS = [
     "https://franciscodes.com",
     "https://www.franciscodes.com",
     "http://153.92.208.112:3000",
+    "https://api.franciscodes.com",
 ]
 
 CORS_ALLOWED_ORIGINS = [
@@ -44,6 +45,7 @@ CORS_ALLOWED_ORIGINS = [
     "https://franciscodes.com",
     "https://www.franciscodes.com",
     "http://153.92.208.112:3000",
+    "https://api.franciscodes.com",
 ]
 
 
@@ -96,6 +98,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     
 ]
 
@@ -171,6 +174,8 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 STATIC_URL = '/static/'
 STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
 
+# Optional but recommended
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 #if DEBUG:
 #
