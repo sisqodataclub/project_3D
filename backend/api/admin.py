@@ -141,7 +141,7 @@ class BookingAdmin(admin.ModelAdmin):
         if platform.system() == "Windows":
             wkhtml_path = r"C:\Program Files\wkhtmltopdf\bin\wkhtmltopdf.exe"
         else:
-            wkhtml_path = "/usr/bin/wkhtmltopdf"
+            wkhtml_path = "/usr/local/bin/wkhtmltopdf"
 
         config = pdfkit.configuration(wkhtmltopdf=wkhtml_path)
 
@@ -168,7 +168,7 @@ class BookingAdmin(admin.ModelAdmin):
         if platform.system() == "Windows":
             wkhtml_path = r"C:\Program Files\wkhtmltopdf\bin\wkhtmltopdf.exe"
         else:
-            wkhtml_path = "/usr/bin/wkhtmltopdf"
+            wkhtml_path = "/usr/local/bin/wkhtmltopdf"
 
         config = pdfkit.configuration(wkhtmltopdf=wkhtml_path)
 
