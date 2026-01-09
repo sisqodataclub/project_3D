@@ -7,14 +7,11 @@ WORKDIR /app
 
 # Install system dependencies
 # Install wkhtmltopdf dependencies
-# Install wkhtmltopdf (static binary)
+# Install wkhtmltopdf for Debian 12 (Bookworm)
 RUN apt-get update && apt-get install -y wget \
-    && wget https://github.com/wkhtmltopdf/packaging/releases/download/0.12.6-1/wkhtmltox_0.12.6-1_linux-generic-amd64.tar.xz \
-    && tar -xf wkhtmltox_0.12.6-1_linux-generic-amd64.tar.xz \
-    && mv wkhtmltox/bin/wkhtmltopdf /usr/local/bin/wkhtmltopdf \
-    && mv wkhtmltox/bin/wkhtmltoimage /usr/local/bin/wkhtmltoimage \
-    && chmod +x /usr/local/bin/wkhtmltopdf /usr/local/bin/wkhtmltoimage \
-    && rm -rf wkhtmltox* \
+    && wget https://github.com/wkhtmltopdf/packaging/releases/download/0.12.6.1-3/wkhtmltox_0.12.6.1-3.bookworm_amd64.deb \
+    && apt-get install -y ./wkhtmltox_0.12.6.1-3.bookworm_amd64.deb \
+    && rm wkhtmltox_0.12.6.1-3.bookworm_amd64.deb \
     && apt-get clean
 
 COPY requirements.txt .
