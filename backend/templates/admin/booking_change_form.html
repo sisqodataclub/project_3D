@@ -1,0 +1,24 @@
+{% extends "admin/change_form.html" %}
+
+{% block object-tools-items %}
+{{ block.super }}
+
+<li>
+    <a href="../../{{ original.id }}/pdf/" 
+       class="button" 
+       style="background:#0a7; color:white;">
+        Download PDF
+    </a>
+</li>
+
+<li>
+    <a href="../../{{ original.id }}/send-invoice/" 
+       class="button" 
+       style="background:#cc7700; color:white;">
+        Send Invoice
+    </a>
+</li>
+
+
+
+{% endblock %}

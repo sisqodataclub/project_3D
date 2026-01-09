@@ -21,15 +21,15 @@ class BookingSnapshot(models.Model):
 
 class Booking(models.Model):
     # Personal details
-    name = models.CharField(max_length=100)
-    email = models.EmailField()
-    phone = models.CharField(max_length=30)
+    name = models.CharField(max_length=100, blank=True, null=True)
+    email = models.EmailField(blank=True, null=True)
+    phone = models.CharField(max_length=30, blank=True, null=True)
     payment_method = models.CharField(max_length=50, default="cash")
 
 
     # Property details
-    furnished_status = models.CharField(max_length=50)
-    parking = models.CharField(max_length=50)
+    furnished_status = models.CharField(max_length=50, blank=True, null=True)
+    parking = models.CharField(max_length=50, blank=True, null=True)
 
     # Cleaning selections
     selected_areas = models.JSONField()   # was ArrayField → now JSONField

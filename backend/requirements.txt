@@ -12,4 +12,4 @@ gunicorn
 django-cors-headers
 stripe
 whitenoise
-
+pdfkit
