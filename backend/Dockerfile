@@ -7,32 +7,15 @@ WORKDIR /app
 
 # Install system dependencies
 # Install wkhtmltopdf dependencies
-RUN apt-get update && apt-get install -y \
-    wget \
-    xfonts-base \
-    xfonts-75dpi \
-    libxrender1 \
-    libxext6 \
-    libfontconfig1 \
-    libfreetype6 \
-    libjpeg62-turbo \
-    libpng16-16 \
-    libssl3 \
-    libx11-6 \
-    libxcb1 \
-    libx11-xcb1 \
-    libxcomposite1 \
-    libxdamage1 \
-    libxfixes3 \
-    libxrandr2 \
-    libxss1 \
-    libxtst6 \
+# Install wkhtmltopdf (static binary)
+RUN apt-get update && apt-get install -y wget \
+    && wget https://github.com/wkhtmltopdf/packaging/releases/download/0.12.6-1/wkhtmltox_0.12.6-1_linux-generic-amd64.tar.xz \
+    && tar -xf wkhtmltox_0.12.6-1_linux-generic-amd64.tar.xz \
+    && mv wkhtmltox/bin/wkhtmltopdf /usr/local/bin/wkhtmltopdf \
+    && mv wkhtmltox/bin/wkhtmltoimage /usr/local/bin/wkhtmltoimage \
+    && chmod +x /usr/local/bin/wkhtmltopdf /usr/local/bin/wkhtmltoimage \
+    && rm -rf wkhtmltox* \
     && apt-get clean
-
-# Install wkhtmltopdf (Debian 12 compatible)
-RUN wget https://github.com/wkhtmltopdf/packaging/releases/download/0.12.6-1/wkhtmltox_0.12.6-1.bookworm_amd64.deb \
-    && dpkg -i wkhtmltox_0.12.6-1.bookworm_amd64.deb || apt-get -fy install \
-    && rm wkhtmltox_0.12.6-1.bookworm_amd64.deb
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
