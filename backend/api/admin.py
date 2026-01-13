@@ -95,7 +95,7 @@ class BookingAdmin(admin.ModelAdmin):
 
     search_fields = ("name", "email", "phone")
 
-    readonly_fields = ("total", "created_at")
+    readonly_fields = ("created_at",)
 
     fieldsets = (
         ("Customer Details", {
