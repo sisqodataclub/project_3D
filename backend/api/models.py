@@ -32,8 +32,8 @@ class Booking(models.Model):
     parking = models.CharField(max_length=50, blank=True, null=True)
 
     # Cleaning selections
-    selected_areas = models.JSONField()   # was ArrayField → now JSONField
-    quantities = models.JSONField()       # works on SQLite + PostgreSQL
+    selected_areas = models.JSONField(blank=True, default=list)   # was ArrayField → now JSONField
+    quantities = models.JSONField(blank=True, default=dict)       # works on SQLite + PostgreSQL
 
 
     # ➕ Add new fields
