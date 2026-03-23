@@ -245,6 +245,25 @@ const projects = [
     image: carrent,
     source_code_link: "https://www.dataclubcenter.com/",
   },
+  
+  
+  
+  
+   {
+    name: "Equiva Iconic",
+    category: "Websites", // new field
+    description:
+      "Data Club Center offers comprehensive support solutions for small businesses...",
+    tags: [
+      { name: "react", color: "blue-text-gradient" },
+      { name: "postgress", color: "green-text-gradient" },
+      { name: "tailwind", color: "pink-text-gradient" },
+    ],
+    image: carrent,
+    source_code_link: "https://www.equivaiconic.co.uk/",
+  },
+  
+
  
 
 
