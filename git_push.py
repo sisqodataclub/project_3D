@@ -46,14 +46,20 @@ def check_case_mismatches(repo_url):
     print("✅ No case mismatches between local and GitHub.\n")
 
 def main():
-    folder_path = input("📁 Enter the full path to your project folder: ").strip()
+    raw_path = input("📁 Enter the full path to your project folder (or '.' for current directory): ").strip()
+    
+    # Automatically expand '~' to '/home/kali5' and convert to an absolute path
+    folder_path = os.path.abspath(os.path.expanduser(raw_path))
+
     if not os.path.isdir(folder_path):
-        print("❌ That path does not exist or is not a folder.")
+        print(f"❌ That path does not exist or is not a folder: {folder_path}")
         return
 
-    repo_url = input("🔗 Enter your GitHub repository URL (HTTPS): ").strip()
-    if not repo_url.startswith("https://github.com/"):
-        print("❌ Please enter a valid GitHub HTTPS URL.")
+    repo_url = input("🔗 Enter your GitHub repository URL (HTTPS or SSH): ").strip()
+    
+    # Allow both HTTPS and SSH URLs so password prompts can be bypassed
+    if not repo_url.startswith("https://github.com/") and not repo_url.startswith("git@github.com:"):
+        print("❌ Please enter a valid GitHub HTTPS or SSH URL.")
         return
 
     os.chdir(folder_path)
