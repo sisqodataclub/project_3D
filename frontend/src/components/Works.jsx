@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import Tilt from "react-parallax-tilt";
 import { motion } from "framer-motion";
 
@@ -8,32 +8,17 @@ import { textVariant, fadeIn } from "../utils/motion";
 import { projects } from "../constants";
 import TechHeader from "../components/TechHeader";
 
-
-// REMOVE this:
-// import ProjectCard from "./ProjectCard";
-
-// ProjectCard component definition
-const ProjectCard = ({
-  index,
-  name,
-  description,
-  tags,
-  image,
-  source_code_link,
-}) => (
+// Note: It's highly recommended to move ProjectCard into its own file (ProjectCard.jsx)
+const ProjectCard = ({ index, name, description, tags, image, source_code_link }) => (
   <motion.div variants={fadeIn("up", "spring", index * 0.5, 0.75)}>
     <Tilt
-      options={{
-        max: 45,
-        scale: 1,
-        speed: 450,
-      }}
+      options={{ max: 45, scale: 1, speed: 450 }}
       className="bg-tertiary p-5 rounded-2xl sm:w-[360px] w-full"
     >
       <div className="relative w-full h-[230px]">
         <img
           src={image}
-          alt="project_image"
+          alt={name} // Improved alt tag for accessibility
           className="w-full h-full object-cover rounded-2xl"
         />
         <div className="absolute inset-0 flex justify-end m-3 card-img_hover">
@@ -41,11 +26,7 @@ const ProjectCard = ({
             onClick={() => window.open(source_code_link, "_blank")}
             className="black-gradient w-10 h-10 rounded-full flex justify-center items-center cursor-pointer"
           >
-            <img
-              src={github}
-              alt="source code"
-              className="w-1/2 h-1/2 object-contain"
-            />
+            <img src={github} alt="source code" className="w-1/2 h-1/2 object-contain" />
           </div>
         </div>
       </div>
@@ -57,11 +38,8 @@ const ProjectCard = ({
 
       <div className="mt-4 flex flex-wrap gap-2">
         {tags.map((tag) => (
-          <p
-            key={`${name}-${tag.name}`}
-            className={`text-[14px] ${tag.color}`}
-          >
-            #{tag.name} 
+          <p key={`${name}-${tag.name}`} className={`text-[14px] ${tag.color}`}>
+            #{tag.name}
           </p>
         ))}
       </div>
@@ -69,11 +47,15 @@ const ProjectCard = ({
   </motion.div>
 );
 
-// Works component
-const categories = ["All", "Websites", "Market Research", "Data Science"];
-
 const Works = () => {
   const [activeCategory, setActiveCategory] = useState("All");
+
+  // 1. DYNAMIC CATEGORIES: Automatically generate filter buttons based on project data
+  // useMemo ensures we only calculate this once when the component mounts
+  const categories = useMemo(() => {
+    const allCategories = projects.map((project) => project.category);
+    return ["All", ...new Set(allCategories.filter(Boolean))]; // filter(Boolean) removes undefined/null categories
+  }, []);
 
   const filteredProjects =
     activeCategory === "All"
@@ -82,7 +64,6 @@ const Works = () => {
 
   return (
     <>
-      {/* Section Header */}
       <motion.div variants={textVariant()}>
         <TechHeader title="My Projects" />
       </motion.div>
@@ -96,7 +77,7 @@ const Works = () => {
             className={`px-4 py-2 rounded-lg font-medium transition-all duration-300 ${
               activeCategory === cat
                 ? "bg-[#915EFF] text-white"
-                : "bg-white text-[#915EFF] border border-[#915EFF]"
+                : "bg-white text-[#915EFF] border border-[#915EFF] hover:bg-[#f0eaff]"
             }`}
           >
             {cat}
@@ -109,7 +90,7 @@ const Works = () => {
         {filteredProjects.length > 0 ? (
           filteredProjects.map((project, index) => (
             <ProjectCard
-              key={`project-${index}`}
+              key={project.name} // 2. FIXED KEY: Using a unique ID instead of array index
               index={index}
               {...project}
             />
