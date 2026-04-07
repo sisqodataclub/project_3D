@@ -4,7 +4,13 @@ import api from "../api";
 export function getSessionId() {
   let id = sessionStorage.getItem("browser_session_id");
   if (!id) {
-    id = crypto.randomUUID();
+    // 1. Try the modern secure way (localhost or HTTPS)
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+      id = crypto.randomUUID();
+    } else {
+      // 2. Bulletproof fallback for non-HTTPS network testing
+      id = 'sess_' + Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
+    }
     sessionStorage.setItem("browser_session_id", id);
   }
   return id;

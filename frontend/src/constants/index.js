@@ -203,27 +203,26 @@ const experiences = [
 
 
 
-
 const testimonials = [
   {
     testimonial:
-      "I had never fully grasped the value of data and market research for small businesses until I worked with Francis—his insights were transformative.",
+      "Francis didn't just build us a highly converting website; he integrated a powerful custom dashboard. Having our business analytics and financial data visualized in real-time has completely changed how I manage our daily operations and commercial contracts.",
     name: "Dennis",
     designation: "OWNER",
-    company: "Ddeep Cleaning Services",
-    image: "https://randomuser.me/api/portraits/women/4.jpg",
+    company: "DDeep Cleaning Services",
+    image: "https://randomuser.me/api/portraits/men/32.jpg", 
   },
   {
     testimonial:
-      "I've never met a web developer who truly cares about their clients' success like Francis does.",
-    name: "Derrick",
-    designation: "OWNER",
-    company: "DERRICK DESIGNS",
-    image: "https://randomuser.me/api/portraits/men/5.jpg",
+      "Working with Francis was incredible. He delivered a stunning e-commerce platform for our luxury fragrance brand, but the real game-changer was the bespoke backend dashboard. Being able to track our financial data and business analytics seamlessly has been vital for our growth.",
+    name: "Hiba",
+    designation: "FOUNDER",
+    company: "Equiva Iconic",
+    image: "https://randomuser.me/api/portraits/women/44.jpg",
   },
   {
     testimonial:
-      "Francis helped me launch my business from the ground up—from building a stunning website to conducting in-depth market research. His support was instrumental every step of the way.",
+      "Francis helped me launch my business from the ground up. Beyond a beautiful website, the integrated analytics dashboard he provided gives me instant clarity on my revenue streams, financial data, and overall market performance.",
     name: "Lisa",
     designation: "CTO",
     company: "COMPLEX PROPERTIES",
@@ -231,45 +230,68 @@ const testimonials = [
   },
 ];
 
+
+
+
+
 const projects = [
   {
     name: "Data Club Center",
-    category: "Websites", // new field
+    category: "Websites",
     description:
-      "Data Club Center offers comprehensive support solutions for small businesses...",
+      "Data Club Center offers comprehensive support solutions for small businesses, providing scalable infrastructure and strategic digital management.",
     tags: [
       { name: "react", color: "blue-text-gradient" },
       { name: "mongodb", color: "green-text-gradient" },
       { name: "tailwind", color: "pink-text-gradient" },
     ],
-    image: carrent,
+    image: carrent, // Assuming this is imported at the top of your file
     source_code_link: "https://www.dataclubcenter.com/",
   },
-  
-  
-  
-  
-   {
+  {
     name: "Equiva Iconic",
-    category: "Websites", // new field
+    category: "Websites",
     description:
-      "Data Club Center offers comprehensive support solutions for small businesses...",
+      "A full-stack e-commerce platform for a luxury fragrance brand. Features a high-performance UI designed to highlight their Extrait de Parfum. Architected end-to-end, containerized with Docker, and deployed independently on a custom-hosted VPS.",
     tags: [
       { name: "react", color: "blue-text-gradient" },
-      { name: "postgress", color: "green-text-gradient" },
-      { name: "tailwind", color: "pink-text-gradient" },
+      { name: "postgres", color: "green-text-gradient" },
+      { name: "docker", color: "blue-text-gradient" },
+      { name: "stripe", color: "red-text-gradient" },
     ],
-    image: carrent,
+    // Fetches live screenshot automatically
+    image: "https://api.microlink.io/?url=https://www.equivaiconic.co.uk&screenshot=true&meta=false&embed=screenshot.url",
     source_code_link: "https://www.equivaiconic.co.uk/",
   },
-  
-
- 
-
-
-
- 
-
+  {
+    name: "DDeep Cleaning Services",
+    category: "Websites",
+    description:
+      "A full-stack lead-generation application for an expert cleaning service across Manchester & Liverpool. Engineered to convert high-value commercial clients, fully containerized, and deployed to a self-managed VPS for maximum uptime.",
+    tags: [
+      { name: "react", color: "blue-text-gradient" },
+      { name: "tailwind", color: "pink-text-gradient" },
+      { name: "docker", color: "blue-text-gradient" },
+      { name: "framer-motion", color: "green-text-gradient" },
+    ],
+    // Fetches live screenshot automatically
+    image: "https://api.microlink.io/?url=https://www.ddeepcleaningservices.com/&screenshot=true&meta=false&embed=screenshot.url",
+    source_code_link: "https://www.ddeepcleaningservices.com/",
+  },
+  {
+    name: "Enterprise Analytics Dashboard",
+    category: "Dashboards",
+    description:
+      "A highly scalable, multi-tenant B2B analytics portal featuring live business metrics, secure role-based access, and deep data visualizations.",
+    tags: [
+      { name: "react-vite", color: "blue-text-gradient" },
+      { name: "django-api", color: "green-text-gradient" },
+      { name: "apache-superset", color: "pink-text-gradient" },
+    ],
+    // Pointing directly to the production dashboard you just deployed!
+    image: "https://api.microlink.io/?url=https://dcs.franciscodes.com&screenshot=true&meta=false&embed=screenshot.url",
+    source_code_link: "https://dcs.franciscodes.com/",
+  },
   {
     name: "Data Overview",
     category: "Data Science",
@@ -280,27 +302,9 @@ const projects = [
       { name: "django", color: "green-text-gradient" },
       { name: "dataoverview", color: "pink-text-gradient" },
     ],
-    image: jobit,
+    image: jobit, // Assuming this is imported at the top of your file
     source_code_link: "https://github.com/sisqodataclub/ml-ds/blob/e1881098af0298f8b932c7b066e5cb75214c0233/Data_Overview.ipynb/",
-  },
-
-/*
-
-  {
-    name: "Trip Guide",
-    category: "Market Research",
-    description:
-      "A comprehensive travel booking platform that allows users to book flights...",
-    tags: [
-      { name: "nextjs", color: "blue-text-gradient" },
-      { name: "supabase", color: "green-text-gradient" },
-      { name: "css", color: "pink-text-gradient" },
-    ],
-    image: tripguide,
-    source_code_link: "https://github.com/",
-  },
-
-*/
+  }
 ];
 
 export { services, technologies, experiences, testimonials, projects };

@@ -1,9 +1,12 @@
+// frontend/src/api.js
 import axios from "axios";
 import { ACCESS_TOKEN } from "./constants";
 
-const apiUrl = "/choreo-apis/awbo/backend/rest-api-be2/v1.0";
+// Change this from the old "/choreo-apis/..." path to your actual backend domain
+const apiUrl = "https://api.franciscodes.com"; 
 
 const api = axios.create({
+  // It will use VITE_API_URL if it exists in your .env, otherwise it defaults to api.franciscodes.com
   baseURL: import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL : apiUrl,
 });
 
