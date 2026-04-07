@@ -1,0 +1,34 @@
+from sqlalchemy import create_engine, text
+from sqlalchemy.orm import sessionmaker
+
+DB_USER = "dbuser"
+DB_PASSWORD = "strongpassword" 
+DB_HOST = "46.225.16.57"
+DB_PORT = "5432"
+DB_NAME = "mydb"
+
+DATABASE_URL = f"postgresql+psycopg2://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+engine = create_engine(DATABASE_URL)
+
+def setup_medallion_architecture():
+    with engine.connect() as conn:
+        print("🏗️ Building Medallion schemas...")
+        conn.execute(text("CREATE SCHEMA IF NOT EXISTS bronze;"))
+        conn.execute(text("CREATE SCHEMA IF NOT EXISTS silver;"))
+        conn.execute(text("CREATE SCHEMA IF NOT EXISTS gold;"))
+        
+        print("📦 Creating bronze.ons_raw_data table...")
+        create_table_sql = """
+        CREATE TABLE IF NOT EXISTS bronze.ons_raw_data (
+            id SERIAL PRIMARY KEY,
+            endpoint_url TEXT NOT NULL,
+            raw_payload JSONB NOT NULL,
+            fetched_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        );
+        """
+        conn.execute(text(create_table_sql))
+        conn.commit()
+        print("🎉 Medallion Architecture initialized successfully!")
+
+if __name__ == "__main__":
+    setup_medallion_architecture()

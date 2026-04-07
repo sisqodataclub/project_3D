@@ -1,18 +1,11 @@
 import React, { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
-
-import { motion, AnimatePresence } from "framer-motion";
-import api from "../api"; // your axios instance
+import api from "../api";
 import PostsGrid from "../components/PostsGrid";
-import NewPostForm from "../components/NewPostForm";
 import TopFeaturedSection from "../components/TopFeaturedSection";
 import AnimatedHeadline from "../components/AnimatedHeadline";
+import MarketTicker from "../components/MarketTicker"; // New component for your CPI data
 
-
-// ────────────────────────── Blog Page ──────────────────────────
-// This page displays blog posts, allows pagination, and has a form to create new posts
-
-const POSTS_PER_PAGE = 3;
+const POSTS_PER_PAGE = 6; // Increase density for financial news
 
 export default function Blog() {
   const [posts, setPosts] = useState([]);
@@ -20,101 +13,77 @@ export default function Blog() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Form state
-  const [title, setTitle] = useState("");
-  const [content, setContent] = useState("");
-  const [tag, setTag] = useState("");
-  const [snippet, setSnippet] = useState("");
-  const [image, setImage] = useState("");
-
   useEffect(() => {
     fetchPosts();
   }, []);
 
-  const fetchPosts = () => {
+  const fetchPosts = async () => {
     setLoading(true);
-    api
-      .get("/api/blogs/")
-      .then((res) => {
-        setPosts(res.data);
-        setLoading(false);
-      })
-      .catch((err) => {
-        setError("Could not load blog posts");
-        setLoading(false);
-        console.error(err);
-      });
-  };
-
-  const totalPages = Math.max(1, Math.ceil(posts.length / POSTS_PER_PAGE));
-  const currentPosts = posts.slice(
-    (page - 1) * POSTS_PER_PAGE,
-    page * POSTS_PER_PAGE
-  );
-
-  const handlePrev = () => setPage((p) => Math.max(p - 1, 1));
-  const handleNext = () => setPage((p) => Math.min(p + 1, totalPages));
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!title.trim() || !content.trim()) return;
-
     try {
-      await api.post("/api/blogs/", { title, content, tag, snippet, image });
-      setTitle("");
-      setContent("");
-      fetchPosts();
-      setPage(1);
+      const res = await api.get("/api/blogs/");
+      // Sorting by date - most recent first for news
+      const sortedPosts = res.data.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      setPosts(sortedPosts);
     } catch (err) {
+      setError("Market data feed unavailable");
       console.error(err);
-      alert("Error creating post");
+    } finally {
+      setLoading(false);
     }
   };
 
-  // Get featured posts
-  const latestThree = posts.slice(0, 3);
-  const lastOne = posts[0]; // most recent post
-
   return (
-    <div className="relative z-0 bg-primary">
-      <div className="bg-hero-pattern bg-cover bg-no-repeat bg-center min-h-screen">
-        <div className="min-h-screen bg-black text-white px-4 sm:px-6 lg:px-20 py-24 max-w-9xl mx-auto font-sans select-none rounded-3xl shadow-lg">
-          <AnimatedHeadline />
+    <div className="min-h-screen bg-[#0b0e14] text-slate-100 font-sans">
+      {/* 1. Global Market Ticker (Show your UK Inflation data here!) */}
+      <MarketTicker />
 
-          {/* Loading and error */}
-          {loading && <p className="text-center text-indigo-200">Loading posts…</p>}
-          {error && <p className="text-center text-red-400">{error}</p>}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        
+        {/* 2. Brand/Headline Section */}
+        <header className="border-b border-slate-800 pb-8 mb-12">
+          <AnimatedHeadline title="The Economic Ledger" />
+          <p className="text-slate-400 uppercase tracking-widest text-xs mt-2">
+            Real-time Insights • {new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+          </p>
+        </header>
 
-          <TopFeaturedSection posts={posts} loading={loading} error={error} />
-
-
-          {/* Posts grid (paginated) */}
-          <PostsGrid
-            posts={posts}
-            page={page}
-            postsPerPage={POSTS_PER_PAGE}
-            loading={loading}
-            error={error}
-            onPrev={handlePrev}
-            onNext={handleNext}
-          />
-
-          {/* New Post Form (optional if you want here) */}
-          {/* <NewPostForm
-            title={title}
-            setTitle={setTitle}
-            tag={tag}
-            setTag={setTag}
-            snippet={snippet}
-            setSnippet={setSnippet}
-            image={image}
-            setImage={setImage}
-            content={content}
-            setContent={setContent}
-            onSubmit={handleSubmit}
-          /> */}
+        {/* 3. Hero Layout: Featured Story + Sidebar */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 mb-16">
+          <div className="lg:col-span-8">
+             <TopFeaturedSection posts={posts.slice(0, 1)} loading={loading} error={error} />
+          </div>
+          
+          <div className="lg:col-span-4 border-l border-slate-800 pl-8 hidden lg:block">
+            <h3 className="text-indigo-400 font-bold uppercase text-sm mb-4 tracking-tighter">Latest Updates</h3>
+            <div className="space-y-6">
+              {posts.slice(1, 4).map(post => (
+                <div key={post.id} className="group cursor-pointer">
+                  <span className="text-xs text-slate-500">{post.tag}</span>
+                  <h4 className="text-md font-semibold group-hover:text-indigo-400 transition-colors">{post.title}</h4>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
-      </div>
+
+        {/* 4. Main Analysis Feed */}
+        <section className="pt-8 border-t border-slate-800">
+           <div className="flex justify-between items-end mb-8">
+              <h2 className="text-2xl font-bold tracking-tight">Market Analysis</h2>
+              <div className="text-xs text-slate-500 uppercase tracking-widest">Page {page} of {Math.ceil(posts.length/POSTS_PER_PAGE)}</div>
+           </div>
+
+           <PostsGrid
+             posts={posts}
+             page={page}
+             postsPerPage={POSTS_PER_PAGE}
+             loading={loading}
+             error={error}
+             onPrev={() => setPage(p => Math.max(p - 1, 1))}
+             onNext={() => setPage(p => p + 1)}
+           />
+        </section>
+      </main>
     </div>
   );
 }
