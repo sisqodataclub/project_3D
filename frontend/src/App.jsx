@@ -66,7 +66,7 @@ const App = () => {
       <AuthProvider>
         {/* 1. Global Theme Wrapper for the whole platform */}
         <div className="min-h-screen bg-[#0b0e14] text-slate-100 font-sans selection:bg-indigo-500/30 flex flex-col">
-          
+
           {/* 2. Global Navbar - Renders once, stays on every page */}
           <Navbar />
 
@@ -79,9 +79,8 @@ const App = () => {
               <Route path="/register" element={<RegisterAndLogout />} />
               <Route path="/logout" element={<Logout />} />
               <Route path="*" element={<NotFound />} />
-              
-              {/* Note: I moved BlogPost outside of the ProtectedRoute in your previous code. 
-                  If you want articles to be public, keep it here. If not, move it down! */}
+
+              {/* Public Blog Post */}
               <Route path="/blog/:id" element={<BlogPost />} />
 
               {/* Multi-Page Form Routes */}
@@ -90,28 +89,23 @@ const App = () => {
               <Route path="/form/details" element={<PersonalDetailsPage details={details} setDetails={setDetails} />} />
               <Route path="/form/submit" element={<ReviewAndSubmit selectedAreas={selectedAreas} quantities={quantities} details={details} />} />
               <Route path="/form" element={<BookingWizard />} />
-              
+
               {/* Dashboards */}
               <Route path="/dashboard" element={<PerfumeAnalyticsDashboard />} />
               <Route path="/manvan" element={<ManVanAnalyticsDashboard />} />
 
-              {/* Protected Routes */}
+              {/* Protected Route */}
               <Route path="/profile" element={
                 <ProtectedRoute>
-                  {/* Navbar removed, handled globally */}
                   <Profile />
                 </ProtectedRoute>
               } />
 
-              <Route path="/blog" element={
-                <ProtectedRoute>
-                  {/* Wrappers and Navbar removed, handled globally */}
-                  <Blog />
-                </ProtectedRoute>
-              } />
+              {/* Public Route */}
+              <Route path="/blog" element={<Blog />} />
             </Routes>
           </main>
-          
+
         </div>
       </AuthProvider>
     </BrowserRouter>

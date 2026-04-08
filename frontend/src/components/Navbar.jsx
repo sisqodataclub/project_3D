@@ -22,31 +22,37 @@ const Navbar = () => {
   }, []);
 
   // Filter links based on authentication and page
-  const filteredLinks = isHomePage
-    ? navLinks.filter((nav) => {
-        if (nav.title === "Login/Register") return !isAuthenticated;
-        if (nav.title === "Logout") return isAuthenticated;
-        return true;
-      })
-    : navLinks.filter((nav) =>
-        ["Blog", "Google", "Login/Register", "Logout"].includes(nav.title)
-      );
+  const filteredLinks = navLinks.filter((nav) => {
+    // 1. Always enforce authentication rules, no matter the page
+    if (nav.title === "Login/Register") return !isAuthenticated;
+    if (nav.title === "Logout") return isAuthenticated;
+    if (nav.title === "Profile") return isAuthenticated; 
+
+    // 2. If we are NOT on the homepage, only show these specific links
+    if (!isHomePage) {
+      // Make sure these strings EXACTLY match the 'title' properties in your constants file!
+      return ["Home", "Profile", "Blog", "Google"].includes(nav.title);
+    }
+
+    // 3. If we are on the homepage, show everything else
+    return true; 
+  });
 
   return (
     <nav
       className={`
         w-full z-50 transition-all duration-300 px-4 sm:px-6 lg:px-8
         /* 1. MAGIC FIX: Use 'sticky' instead of 'fixed' so it pushes content down */
-        sticky top-0 
+        sticky top-0
         /* 2. THEME FIX: Frosted glass on all pages, but slightly darker when scrolled */
-        ${scrolled || !isHomePage 
-          ? "bg-[#0b0e14]/90 backdrop-blur-md border-b border-slate-800 shadow-lg" 
+        ${scrolled || !isHomePage
+          ? "bg-[#0b0e14]/90 backdrop-blur-md border-b border-slate-800 shadow-lg"
           : "bg-[#0b0e14]/50 backdrop-blur-sm border-b border-transparent"
         }
       `}
     >
       <div className="max-w-7xl mx-auto flex justify-between items-center py-4">
-        
+
         {/* Logo - Upgraded to Professional Financial Theme */}
         <Link
           to="/"
