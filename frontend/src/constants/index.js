@@ -55,8 +55,8 @@ export const navLinks = [
   
 
   {
-    id: "https://www.google.com",
-    title: "Google",
+    id: "https://github.com/sisqodataclub",
+    title: "Github",
     external: true, 
   },
 
