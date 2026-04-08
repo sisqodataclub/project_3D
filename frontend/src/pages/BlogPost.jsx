@@ -1,4 +1,3 @@
-// src/pages/BlogPost.jsx
 import { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -6,13 +5,11 @@ import { Helmet } from "react-helmet-async";
 import api from "../api";
 import CommentBox from "../components/CommentBox";
 
-/* ───────────────────────── Helpers ───────────────────────── */
 const fadeUp = {
   hidden: { opacity: 0, y: 20 },
   show: i => ({ opacity: 1, y: 0, transition: { delay: i * 0.1, duration: 0.6, ease: "easeOut" } })
 };
 
-/* ───────────────────────── Component ─────────────────────── */
 export default function BlogPost() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -58,14 +55,12 @@ export default function BlogPost() {
   return (
     <div className="min-h-screen bg-[#0b0e14] text-slate-100 px-4 sm:px-6 lg:px-32 py-16 max-w-5xl mx-auto selection:bg-indigo-500/30">
       
-      {/* Dynamic SEO Meta Tags */}
       <Helmet>
         <title>{title} | The Economic Ledger</title>
         <meta name="description" content={blocks[0]?.text?.substring(0, 150) || "Read the latest market report."} />
         {image && <meta property="og:image" content={image} />}
       </Helmet>
 
-      {/* Back Navigation */}
       <div className="mb-12 border-b border-slate-800 pb-4">
         <Link to="/blog" className="text-xs font-bold text-slate-500 hover:text-indigo-400 uppercase tracking-[0.2em] transition-colors">
           ← Return to Newsfeed
@@ -117,7 +112,6 @@ export default function BlogPost() {
         {blocks.map((blk, i) => {
           const isQuote = blk.text?.trim().startsWith('"');
           return (
-            {/* FIXED: Using blk.id as key to prevent React rendering glitches */}
             <motion.section key={blk.id || `fallback-${i}`}
               className="mb-10"
               variants={fadeUp} initial="hidden" whileInView="show"
