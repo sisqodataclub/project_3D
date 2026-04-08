@@ -22,7 +22,6 @@ export default function Blog() {
     setLoading(true);
     try {
       const res = await api.get("/api/blogs/");
-      // Safely handle both standard arrays and Django paginated responses
       const dataArray = res.data.results ? res.data.results : res.data;
       
       const sortedPosts = dataArray.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
@@ -57,7 +56,6 @@ export default function Blog() {
             <h3 className="text-indigo-400 font-bold uppercase text-sm mb-4 tracking-tighter">Latest Updates</h3>
             <div className="space-y-6">
               {posts.slice(1, 4).map(post => (
-                {/* FIXED: Wrapped the sidebar items in active router Links */}
                 <Link to={`/blog/${post.id}`} key={post.id} className="group block cursor-pointer">
                   <span className="text-xs text-slate-500">{post.tag}</span>
                   <h4 className="text-md font-semibold group-hover:text-indigo-400 transition-colors">
@@ -72,7 +70,7 @@ export default function Blog() {
         <section className="pt-8 border-t border-slate-800">
            <div className="flex justify-between items-end mb-8">
               <h2 className="text-2xl font-bold tracking-tight">Market Analysis</h2>
-              <div className="text-xs text-slate-500 uppercase tracking-widest">Page {page} of {Math.ceil(posts.length/POSTS_PER_PAGE)}</div>
+              <div className="text-xs text-slate-500 uppercase tracking-widest">Page {page} of {Math.ceil(posts.length/POSTS_PER_PAGE) || 1}</div>
            </div>
 
            <PostsGrid
