@@ -54,9 +54,6 @@ export const navLinks = [
 
   
 
-
-
-/*
   {
     id: "https://www.google.com",
     title: "Google",
@@ -91,8 +88,6 @@ export const navLinks = [
   external: false, // or simply remove this line
   internal: true   // optional, for clarity
 }
-
-*/
   
 
 
