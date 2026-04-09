@@ -1,3 +1,4 @@
+import UkEconomyDashboard from "./pages/UkEconomyDashboard";
 import React, { useState } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
@@ -93,6 +94,8 @@ const App = () => {
               {/* Dashboards */}
               <Route path="/dashboard" element={<PerfumeAnalyticsDashboard />} />
               <Route path="/manvan" element={<ManVanAnalyticsDashboard />} />
+
+	      <Route path="/economy" element={<UkEconomyDashboard />} />
 
               {/* Protected Route */}
               <Route path="/profile" element={
