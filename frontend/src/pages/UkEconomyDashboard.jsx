@@ -5,6 +5,9 @@ import {
 } from 'recharts';
 import { TrendingUp, Activity, PoundSterling, AlertCircle } from 'lucide-react';
 
+import api from '../api';
+
+
 // --- MOCK GOLD LAYER DATA (For Charts) ---
 const inflationTrendData = [
   { period: 'Sep 23', headline: 6.7, core: 6.1 },
@@ -45,6 +48,7 @@ const KPICard = ({ title, value, subtext, icon: Icon, trend }) => (
   </div>
 );
 
+
 const UkEconomyDashboard = () => {
   const [activeTab, setActiveTab] = useState('headline');
   
@@ -56,12 +60,12 @@ const UkEconomyDashboard = () => {
   useEffect(() => {
     const fetchKPIs = async () => {
       try {
-        // Adjust port/domain if needed for production
-        const response = await fetch('http://localhost:8000/api/economy/kpis/'); 
-        const data = await response.json();
+        // 🌟 UPDATED: Uses your api.js config to hit the correct backend automatically
+        const response = await api.get('/api/economy/kpis/'); 
         
-        if (data.status === 'success') {
-          setLiveKpis(data.kpis);
+        // Axios stores the JSON response in the `.data` property
+        if (response.data.status === 'success') {
+          setLiveKpis(response.data.kpis);
         }
       } catch (error) {
         console.error("Failed to fetch live KPIs:", error);
@@ -72,6 +76,9 @@ const UkEconomyDashboard = () => {
 
     fetchKPIs();
   }, []);
+
+
+
 
   return (
     <div className="min-h-screen px-6 py-12 lg:px-12 bg-[#0b0e14] text-slate-200">
