@@ -19,14 +19,16 @@ const Contact = () => {
     setForm({ ...form, [name]: value });
   };
 
+
   const handleSubmit = (e) => {
     e.preventDefault();
     setLoading(true);
 
     api
-      .post("/api/contact-messages/", form)
+      .post("/api/contact/", form) // 🌟 Updated endpoint
       .then((res) => {
-        if (res.status === 201) {
+        // 🌟 Changed 201 to 200 to match your Django view!
+        if (res.status === 200) { 
           showToast("Message sent successfully!", "success");
           setForm({ name: "", email: "", message: "" });
         } else {
@@ -38,6 +40,8 @@ const Contact = () => {
       })
       .finally(() => setLoading(false));
   };
+
+
 
   const showToast = (message, type) => {
     setToast({ show: true, message, type });
