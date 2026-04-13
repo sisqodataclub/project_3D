@@ -4,28 +4,7 @@ import {
   BarChart, Bar, Cell
 } from 'recharts';
 import { TrendingUp, Activity, PoundSterling, AlertCircle } from 'lucide-react';
-
 import api from '../api';
-
-
-// --- MOCK GOLD LAYER DATA (For Charts) ---
-const inflationTrendData = [
-  { period: 'Sep 23', headline: 6.7, core: 6.1 },
-  { period: 'Oct 23', headline: 4.6, core: 5.7 },
-  { period: 'Nov 23', headline: 3.9, core: 5.1 },
-  { period: 'Dec 23', headline: 4.0, core: 5.1 },
-  { period: 'Jan 24', headline: 4.0, core: 5.1 },
-  { period: 'Feb 24', headline: 3.4, core: 4.5 },
-  { period: 'Mar 24', headline: 3.2, core: 4.2 },
-];
-
-const categoryData = [
-  { name: 'Housing & Utilities', value: -1.4, weight: 29.5 },
-  { name: 'Transport', value: -0.1, weight: 11.2 },
-  { name: 'Food & Beverage', value: 4.0, weight: 10.8 },
-  { name: 'Restaurants', value: 5.8, weight: 11.1 },
-  { name: 'Education', value: 4.5, weight: 2.6 },
-];
 
 // --- LUXURY UI COMPONENTS ---
 const KPICard = ({ title, value, subtext, icon: Icon, trend }) => (
@@ -48,41 +27,59 @@ const KPICard = ({ title, value, subtext, icon: Icon, trend }) => (
   </div>
 );
 
-
 const UkEconomyDashboard = () => {
   const [activeTab, setActiveTab] = useState('headline');
-  
-  // State for live Django KPI Data
+
+  // State for live Django Data
   const [liveKpis, setLiveKpis] = useState(null);
+  const [chartData, setChartData] = useState({ trend: [], category: [] });
   const [loading, setLoading] = useState(true);
 
-  // Fetch data from Django on component mount
+  // Fetch data with smart polling
   useEffect(() => {
-    const fetchKPIs = async () => {
+    let isMounted = true;
+    let timeoutId;
+
+    const fetchDashboardData = async () => {
       try {
-        // 🌟 UPDATED: Uses your api.js config to hit the correct backend automatically
-        const response = await api.get('/api/economy/kpis/'); 
-        
-        // Axios stores the JSON response in the `.data` property
-        if (response.data.status === 'success') {
+        const response = await api.get('/api/economy/kpis/');
+
+        // 1. Handle the "Cold Start" (Data is building in the background)
+        if (response.status === 202 || response.data.status === 'loading') {
+          if (isMounted) {
+            console.log("Dashboard is syncing... retrying in 3 seconds.");
+            // Poll again in 3 seconds
+            timeoutId = setTimeout(fetchDashboardData, 3000);
+          }
+          return; // Do not set loading to false yet!
+        }
+
+        // 2. Handle Success!
+        if (response.data.status === 'success' && isMounted) {
           setLiveKpis(response.data.kpis);
+          setChartData({
+            trend: response.data.charts.inflation_trend || [],
+            category: response.data.charts.category_breakdown || []
+          });
+          setLoading(false);
         }
       } catch (error) {
-        console.error("Failed to fetch live KPIs:", error);
-      } finally {
-        setLoading(false);
+        console.error("Failed to fetch dashboard:", error);
+        if (isMounted) setLoading(false);
       }
     };
 
-    fetchKPIs();
+    fetchDashboardData();
+
+    // Cleanup to prevent memory leaks if user navigates away
+    return () => {
+      isMounted = false;
+      if (timeoutId) clearTimeout(timeoutId);
+    };
   }, []);
-
-
-
 
   return (
     <div className="min-h-screen px-6 py-12 lg:px-12 bg-[#0b0e14] text-slate-200">
-
       {/* Header Section */}
       <div className="max-w-7xl mx-auto mb-10">
         <div className="flex flex-col md:flex-row md:items-end justify-between border-b border-white/10 pb-6">
@@ -95,7 +92,7 @@ const UkEconomyDashboard = () => {
               Macroeconomic <span className="font-semibold text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-cyan-400">Pulse</span>
             </h1>
             <p className="text-slate-400 text-sm md:text-base max-w-xl">
-              Real-time monitoring of United Kingdom Consumer Prices Index (CPIH) metrics, powered by automated ONS data pipelines.
+              Real-time monitoring of United Kingdom Consumer Prices Index metrics, powered by automated ONS data pipelines.
             </p>
           </div>
           <p className="text-xs text-slate-500 mt-4 md:mt-0 font-mono tracking-wider">LAST UPDATED: LIVE</p>
@@ -103,127 +100,123 @@ const UkEconomyDashboard = () => {
       </div>
 
       <div className="max-w-7xl mx-auto space-y-6">
-
         {/* Dynamic Top KPI Row */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {loading || !liveKpis ? (
             // Skeleton Loaders
             <>
-              <div className="h-40 rounded-2xl bg-white/[0.02] border border-white/[0.05] animate-pulse"></div>
+              <div className="h-40 rounded-2xl bg-white/[0.02] border border-white/[0.05] animate-pulse flex items-center justify-center">
+                <span className="text-slate-500 text-sm">Syncing Data...</span>
+              </div>
               <div className="h-40 rounded-2xl bg-white/[0.02] border border-white/[0.05] animate-pulse"></div>
               <div className="h-40 rounded-2xl bg-white/[0.02] border border-white/[0.05] animate-pulse"></div>
             </>
           ) : (
             <>
-              {/* Dynamic Headline Inflation */}
-              <KPICard 
-                title={liveKpis.headline_inflation.title} 
-                value={liveKpis.headline_inflation.value} 
-                subtext={liveKpis.headline_inflation.subtitle} 
-                icon={Activity} 
-                trend="down" 
+              <KPICard
+                title={liveKpis.headline_inflation.title}
+                value={liveKpis.headline_inflation.value}
+                subtext={liveKpis.headline_inflation.subtitle}
+                icon={Activity}
+                trend="down"
               />
-              
-              {/* Dynamic Trajectory */}
-              <KPICard 
-                title={liveKpis.economic_trajectory.title} 
-                value={liveKpis.economic_trajectory.value} 
-                subtext={liveKpis.economic_trajectory.subtitle} 
-                icon={liveKpis.economic_trajectory.value.includes('-') ? TrendingUp : AlertCircle} 
-                trend={liveKpis.economic_trajectory.value.includes('-') ? "down" : "up"} 
+              <KPICard
+                title={liveKpis.economic_trajectory.title}
+                value={liveKpis.economic_trajectory.value}
+                subtext={liveKpis.economic_trajectory.subtitle}
+                icon={liveKpis.economic_trajectory.value.includes('-') ? TrendingUp : AlertCircle}
+                trend={liveKpis.economic_trajectory.value.includes('-') ? "down" : "up"}
               />
-              
-              {/* Dynamic Wallet Squeeze */}
-              <KPICard 
-                title={liveKpis.wallet_squeeze.title} 
-                value={liveKpis.wallet_squeeze.value} 
-                subtext={liveKpis.wallet_squeeze.subtitle} 
-                icon={PoundSterling} 
-                trend="up" 
+              <KPICard
+                title={liveKpis.wallet_squeeze.title}
+                value={liveKpis.wallet_squeeze.value}
+                subtext={liveKpis.wallet_squeeze.subtitle}
+                icon={PoundSterling}
+                trend="up"
               />
             </>
           )}
         </div>
 
         {/* Main Charts Area */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {!loading && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Main Area Chart */}
+            <div className="lg:col-span-2 p-6 rounded-2xl bg-white/[0.02] border border-white/[0.05] backdrop-blur-sm">
+              <div className="flex items-center justify-between mb-8">
+                <h2 className="text-lg font-medium text-slate-200">Inflation Trajectory (12-Month)</h2>
+                <div className="flex space-x-2">
+                  <button
+                    onClick={() => setActiveTab('headline')}
+                    className={`px-4 py-1.5 text-xs font-semibold rounded-full transition-colors ${activeTab === 'headline' ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30' : 'text-slate-400 hover:text-slate-200'}`}>
+                    Headline
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('core')}
+                    className={`px-4 py-1.5 text-xs font-semibold rounded-full transition-colors ${activeTab === 'core' ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30' : 'text-slate-400 hover:text-slate-200'}`}>
+                    Core
+                  </button>
+                </div>
+              </div>
 
-          {/* Main Area Chart */}
-          <div className="lg:col-span-2 p-6 rounded-2xl bg-white/[0.02] border border-white/[0.05] backdrop-blur-sm">
-            <div className="flex items-center justify-between mb-8">
-              <h2 className="text-lg font-medium text-slate-200">Inflation Trajectory (12-Month)</h2>
-              <div className="flex space-x-2">
-                <button
-                  onClick={() => setActiveTab('headline')}
-                  className={`px-4 py-1.5 text-xs font-semibold rounded-full transition-colors ${activeTab === 'headline' ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30' : 'text-slate-400 hover:text-slate-200'}`}>
-                  Headline
-                </button>
-                <button
-                  onClick={() => setActiveTab('core')}
-                  className={`px-4 py-1.5 text-xs font-semibold rounded-full transition-colors ${activeTab === 'core' ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30' : 'text-slate-400 hover:text-slate-200'}`}>
-                  Core
-                </button>
+              <div className="h-80 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={chartData.trend} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#818cf8" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="#818cf8" stopOpacity={0}/>
+                      </linear   Gradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#ffffff0a" vertical={false} />
+                    <XAxis dataKey="period" stroke="#475569" tick={{fill: '#94a3b8', fontSize: 12}} tickLine={false} axisLine={false} />
+                    <YAxis stroke="#475569" tick={{fill: '#94a3b8', fontSize: 12}} tickLine={false} axisLine={false} tickFormatter={(val) => `${val}%`} />
+                    <Tooltip
+                      contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', borderRadius: '12px', color: '#f1f5f9' }}
+                      itemStyle={{ color: '#818cf8' }}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey={activeTab}
+                      stroke="#818cf8"
+                      strokeWidth={3}
+                      fillOpacity={1}
+                      fill="url(#colorValue)"
+                      animationDuration={1500}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
               </div>
             </div>
 
-            <div className="h-80 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={inflationTrendData} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#818cf8" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="#818cf8" stopOpacity={0}/>
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#ffffff0a" vertical={false} />
-                  <XAxis dataKey="period" stroke="#475569" tick={{fill: '#94a3b8', fontSize: 12}} tickLine={false} axisLine={false} />
-                  <YAxis stroke="#475569" tick={{fill: '#94a3b8', fontSize: 12}} tickLine={false} axisLine={false} tickFormatter={(val) => `${val}%`} />
-                  <Tooltip
-                    contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', borderRadius: '12px', color: '#f1f5f9' }}
-                    itemStyle={{ color: '#818cf8' }}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey={activeTab}
-                    stroke="#818cf8"
-                    strokeWidth={3}
-                    fillOpacity={1}
-                    fill="url(#colorValue)"
-                    animationDuration={1500}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
+            {/* Sector Breakdown Bar Chart */}
+            <div className="p-6 rounded-2xl bg-white/[0.02] border border-white/[0.05] backdrop-blur-sm flex flex-col">
+              <div className="mb-6">
+                <h2 className="text-lg font-medium text-slate-200">Sector Breakdown</h2>
+                <p className="text-xs text-slate-400 mt-1">YoY Change by Top Weighted Divisions</p>
+              </div>
+
+              <div className="flex-grow w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={chartData.category} layout="vertical" margin={{ top: 0, right: 20, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#ffffff0a" horizontal={false} />
+                    <XAxis type="number" stroke="#475569" tick={{fill: '#94a3b8', fontSize: 12}} tickLine={false} axisLine={false} tickFormatter={(val) => `${val}%`} />
+                    <YAxis dataKey="name" type="category" width={110} stroke="#475569" tick={{fill: '#94a3b8', fontSize: 11}} tickLine={false} axisLine={false} />
+                    <Tooltip
+                      cursor={{fill: '#ffffff05'}}
+                      contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', borderRadius: '12px' }}
+                    />
+                    <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={20} animationDuration={1500}>
+                      {chartData.category.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.value > 0 ? '#f43f5e' : '#10b981'} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
             </div>
           </div>
-
-          {/* Sector Breakdown Bar Chart */}
-          <div className="p-6 rounded-2xl bg-white/[0.02] border border-white/[0.05] backdrop-blur-sm flex flex-col">
-            <div className="mb-6">
-              <h2 className="text-lg font-medium text-slate-200">Sector Breakdown</h2>
-              <p className="text-xs text-slate-400 mt-1">YoY Change by Top Weighted Divisions</p>
-            </div>
-
-            <div className="flex-grow w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={categoryData} layout="vertical" margin={{ top: 0, right: 20, left: 0, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#ffffff0a" horizontal={false} />
-                  <XAxis type="number" stroke="#475569" tick={{fill: '#94a3b8', fontSize: 12}} tickLine={false} axisLine={false} tickFormatter={(val) => `${val}%`} />
-                  <YAxis dataKey="name" type="category" width={110} stroke="#475569" tick={{fill: '#94a3b8', fontSize: 11}} tickLine={false} axisLine={false} />
-                  <Tooltip
-                    cursor={{fill: '#ffffff05'}}
-                    contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', borderRadius: '12px' }}
-                  />
-                  <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={20} animationDuration={1500}>
-                    {categoryData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.value > 0 ? '#f43f5e' : '#10b981'} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-
-        </div>
+        )}
       </div>
     </div>
   );
