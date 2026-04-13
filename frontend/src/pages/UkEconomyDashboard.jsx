@@ -6,7 +6,6 @@ import {
 import { TrendingUp, Activity, PoundSterling, AlertCircle } from 'lucide-react';
 import api from '../api';
 
-// --- LUXURY UI COMPONENTS ---
 const KPICard = ({ title, value, subtext, icon: Icon, trend }) => (
   <div className="relative p-6 overflow-hidden rounded-2xl bg-white/[0.02] border border-white/[0.05] backdrop-blur-xl group hover:bg-white/[0.04] transition-all duration-300">
     <div className="absolute top-0 right-0 p-4 opacity-10 text-indigo-400 group-hover:scale-110 group-hover:opacity-20 transition-all duration-500">
@@ -29,13 +28,10 @@ const KPICard = ({ title, value, subtext, icon: Icon, trend }) => (
 
 const UkEconomyDashboard = () => {
   const [activeTab, setActiveTab] = useState('headline');
-
-  // State for live Django Data
   const [liveKpis, setLiveKpis] = useState(null);
   const [chartData, setChartData] = useState({ trend: [], category: [] });
   const [loading, setLoading] = useState(true);
 
-  // Fetch data with smart polling
   useEffect(() => {
     let isMounted = true;
     let timeoutId;
@@ -44,17 +40,14 @@ const UkEconomyDashboard = () => {
       try {
         const response = await api.get('/api/economy/kpis/');
 
-        // 1. Handle the "Cold Start" (Data is building in the background)
         if (response.status === 202 || response.data.status === 'loading') {
           if (isMounted) {
             console.log("Dashboard is syncing... retrying in 3 seconds.");
-            // Poll again in 3 seconds
             timeoutId = setTimeout(fetchDashboardData, 3000);
           }
-          return; // Do not set loading to false yet!
+          return;
         }
 
-        // 2. Handle Success!
         if (response.data.status === 'success' && isMounted) {
           setLiveKpis(response.data.kpis);
           setChartData({
@@ -71,7 +64,6 @@ const UkEconomyDashboard = () => {
 
     fetchDashboardData();
 
-    // Cleanup to prevent memory leaks if user navigates away
     return () => {
       isMounted = false;
       if (timeoutId) clearTimeout(timeoutId);
@@ -80,7 +72,6 @@ const UkEconomyDashboard = () => {
 
   return (
     <div className="min-h-screen px-6 py-12 lg:px-12 bg-[#0b0e14] text-slate-200">
-      {/* Header Section */}
       <div className="max-w-7xl mx-auto mb-10">
         <div className="flex flex-col md:flex-row md:items-end justify-between border-b border-white/10 pb-6">
           <div>
@@ -100,10 +91,8 @@ const UkEconomyDashboard = () => {
       </div>
 
       <div className="max-w-7xl mx-auto space-y-6">
-        {/* Dynamic Top KPI Row */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {loading || !liveKpis ? (
-            // Skeleton Loaders
             <>
               <div className="h-40 rounded-2xl bg-white/[0.02] border border-white/[0.05] animate-pulse flex items-center justify-center">
                 <span className="text-slate-500 text-sm">Syncing Data...</span>
@@ -138,10 +127,8 @@ const UkEconomyDashboard = () => {
           )}
         </div>
 
-        {/* Main Charts Area */}
         {!loading && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Main Area Chart */}
             <div className="lg:col-span-2 p-6 rounded-2xl bg-white/[0.02] border border-white/[0.05] backdrop-blur-sm">
               <div className="flex items-center justify-between mb-8">
                 <h2 className="text-lg font-medium text-slate-200">Inflation Trajectory (12-Month)</h2>
@@ -166,7 +153,7 @@ const UkEconomyDashboard = () => {
                       <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor="#818cf8" stopOpacity={0.3}/>
                         <stop offset="95%" stopColor="#818cf8" stopOpacity={0}/>
-                      </linear   Gradient>
+                      </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="#ffffff0a" vertical={false} />
                     <XAxis dataKey="period" stroke="#475569" tick={{fill: '#94a3b8', fontSize: 12}} tickLine={false} axisLine={false} />
@@ -189,7 +176,6 @@ const UkEconomyDashboard = () => {
               </div>
             </div>
 
-            {/* Sector Breakdown Bar Chart */}
             <div className="p-6 rounded-2xl bg-white/[0.02] border border-white/[0.05] backdrop-blur-sm flex flex-col">
               <div className="mb-6">
                 <h2 className="text-lg font-medium text-slate-200">Sector Breakdown</h2>
