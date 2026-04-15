@@ -1,10 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Activity, Target, TrendingDown, TrendingUp, AlertCircle, Calendar } from 'lucide-react';
+import { Activity, Target, TrendingDown, TrendingUp, AlertCircle, Calendar, Search, SlidersHorizontal } from 'lucide-react';
 
-// Use this import in your local codebase:
-// import api from '../api';
-
-// For this preview environment, we use a built-in fetch wrapper that points directly 
+// For this preview environment, we use a built-in fetch wrapper that points directly
 // to your live Django backend, mimicking your local axios setup without mock data.
 const api = {
   get: async (path) => {
@@ -15,15 +12,14 @@ const api = {
 };
 
 // --- UX/UI HELPERS ---
-
 const getHeatmapColor = (value) => {
-  if (value === null || value === undefined) return 'bg-slate-800/50 text-slate-500'; 
-  if (value >= 8.0) return 'bg-rose-600 text-white';           
-  if (value >= 5.0) return 'bg-rose-500/80 text-white';        
-  if (value >= 3.0) return 'bg-rose-400/60 text-white';        
-  if (value >= 2.0) return 'bg-orange-400/40 text-orange-100'; 
-  if (value > 0.0) return 'bg-amber-400/20 text-amber-200';    
-  return 'bg-emerald-500/40 text-emerald-100';                 
+  if (value === null || value === undefined) return 'bg-slate-800/50 text-slate-500';
+  if (value >= 8.0) return 'bg-rose-600 text-white';
+  if (value >= 5.0) return 'bg-rose-500/80 text-white';
+  if (value >= 3.0) return 'bg-rose-400/60 text-white';
+  if (value >= 2.0) return 'bg-orange-400/40 text-orange-100';
+  if (value > 0.0) return 'bg-amber-400/20 text-amber-200';
+  return 'bg-emerald-500/40 text-emerald-100';
 };
 
 const KPICard = ({ title, value, subtext, icon: Icon, trendColor }) => (
@@ -51,6 +47,11 @@ const UkEconomyDashboard = () => {
   const [heatmapData, setHeatmapData] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // --- INTERACTIVITY STATE ---
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortOrder, setSortOrder] = useState('alphabetical'); // 'alphabetical', 'hottest', 'coldest'
+  const [severityFilter, setSeverityFilter] = useState('all'); // 'all', 'hot', 'extreme'
+
   // Data Fetching Logic
   useEffect(() => {
     let isMounted = true;
@@ -60,20 +61,15 @@ const UkEconomyDashboard = () => {
       try {
         const response = await api.get('/api/economy/kpis/');
 
-        // 1. Handle Background Syncing (HTTP 202)
         if (response.status === 202 || response.data.status === 'loading') {
           if (isMounted) {
-            console.log("Dashboard is syncing... retrying in 3 seconds.");
             timeoutId = setTimeout(fetchDashboardData, 3000);
           }
           return;
         }
 
-        // 2. Handle Success
         if (response.data.status === 'success' && isMounted) {
           setLiveKpis(response.data.kpis);
-          
-          // Map the heatmap array from the backend (ensure it defaults to empty array if undefined)
           setHeatmapData(response.data.charts?.heatmap_array || []);
           setLoading(false);
         }
@@ -91,17 +87,48 @@ const UkEconomyDashboard = () => {
     };
   }, []);
 
-  // --- HEATMAP MATRIX PROCESSING ---
-  // Ensure chronologically sorted periods for the X-axis
+  // --- HEATMAP MATRIX PROCESSING & FILTERING ---
   const periods = [...new Set(heatmapData.map(d => d.period))].sort((a, b) => new Date(a) - new Date(b));
-  // Ensure alphabetically sorted divisions for the Y-axis
-  const divisions = [...new Set(heatmapData.map(d => d.division_name))].sort();
+  const latestPeriod = periods[periods.length - 1]; 
+  
+  let rawDivisions = [...new Set(heatmapData.map(d => d.division_name))];
 
-  const matrix = divisions.map(division => {
+  // 1. Calculate stats for each division to enable intelligent sorting/filtering
+  let divisionStats = rawDivisions.map(div => {
+    const latestRecord = heatmapData.find(d => d.division_name === div && d.period === latestPeriod);
+    const latestValue = latestRecord ? latestRecord.yoy_pct : -999;
+    const maxValue = Math.max(...heatmapData.filter(d => d.division_name === div).map(d => d.yoy_pct || -999));
+    
+    return { name: div, latestValue, maxValue };
+  });
+
+  // 2. Apply Search Filter
+  if (searchTerm) {
+    divisionStats = divisionStats.filter(d => d.name.toLowerCase().includes(searchTerm.toLowerCase()));
+  }
+
+  // 3. Apply Severity Filter (Filters by the highest spike in the 12-month period)
+  if (severityFilter === 'hot') {
+    divisionStats = divisionStats.filter(d => d.maxValue >= 3.0);
+  } else if (severityFilter === 'extreme') {
+    divisionStats = divisionStats.filter(d => d.maxValue >= 5.0);
+  }
+
+  // 4. Apply Sort Order (Sorts based on the most recent month's data)
+  if (sortOrder === 'hottest') {
+    divisionStats.sort((a, b) => b.latestValue - a.latestValue);
+  } else if (sortOrder === 'coldest') {
+    divisionStats.sort((a, b) => a.latestValue - b.latestValue);
+  } else {
+    divisionStats.sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  // 5. Build final rendered matrix
+  const matrix = divisionStats.map(divStat => {
     return {
-      division,
+      division: divStat.name,
       values: periods.map(period => {
-        const record = heatmapData.find(d => d.division_name === division && d.period === period);
+        const record = heatmapData.find(d => d.division_name === divStat.name && d.period === period);
         return record ? record.yoy_pct : null;
       })
     };
@@ -141,53 +168,25 @@ const UkEconomyDashboard = () => {
             ))
           ) : (
             <>
-              {/* 1. Headline */}
-              <KPICard 
-                title={liveKpis.headline_inflation?.title || "Headline Inflation"} 
-                value={liveKpis.headline_inflation?.value || "N/A"} 
-                subtext={liveKpis.headline_inflation?.subtitle || "Official Rate"} 
-                icon={Activity} 
-                trendColor="text-slate-400" 
-              />
-              {/* 2. Core (Graceful fallback if backend core isn't wired up yet) */}
-              <KPICard 
-                title={liveKpis.core_inflation?.title || "Core Inflation"} 
-                value={liveKpis.core_inflation?.value || "N/A"} 
-                subtext={liveKpis.core_inflation?.subtitle || "Excl. Food & Energy"} 
-                icon={Target} 
-                trendColor="text-slate-400" 
-              />
-              {/* 3. Trajectory */}
-              <KPICard 
-                title={liveKpis.economic_trajectory?.title || "MoM Trajectory"} 
-                value={liveKpis.economic_trajectory?.value || "N/A"} 
-                subtext={liveKpis.economic_trajectory?.subtitle || "Change"} 
-                icon={String(liveKpis.economic_trajectory?.value).includes('-') ? TrendingDown : TrendingUp} 
-                trendColor={String(liveKpis.economic_trajectory?.value).includes('-') ? "text-emerald-400" : "text-rose-400"} 
-              />
-              {/* 4. Top Category */}
-              <KPICard 
-                title={liveKpis.wallet_squeeze?.title || "Highest Offender"} 
-                value={liveKpis.wallet_squeeze?.value || "N/A"} 
-                subtext={liveKpis.wallet_squeeze?.subtitle || "Top Category"} 
-                icon={AlertCircle} 
-                trendColor="text-rose-400 truncate max-w-[180px] inline-block align-bottom" 
-              />
+              <KPICard title={liveKpis.headline_inflation?.title} value={liveKpis.headline_inflation?.value} subtext={liveKpis.headline_inflation?.subtitle} icon={Activity} trendColor="text-slate-400" />
+              <KPICard title={liveKpis.core_inflation?.title} value={liveKpis.core_inflation?.value} subtext={liveKpis.core_inflation?.subtitle} icon={Target} trendColor="text-slate-400" />
+              <KPICard title={liveKpis.economic_trajectory?.title} value={liveKpis.economic_trajectory?.value} subtext={liveKpis.economic_trajectory?.subtitle} icon={String(liveKpis.economic_trajectory?.value).includes('-') ? TrendingDown : TrendingUp} trendColor={String(liveKpis.economic_trajectory?.value).includes('-') ? "text-emerald-400" : "text-rose-400"} />
+              <KPICard title={liveKpis.wallet_squeeze?.title} value={liveKpis.wallet_squeeze?.value} subtext={liveKpis.wallet_squeeze?.subtitle} icon={AlertCircle} trendColor="text-rose-400 truncate max-w-[180px] inline-block align-bottom" />
             </>
           )}
         </div>
 
-        {/* MASSIVE HEATMAP */}
+        {/* MASSIVE HEATMAP WITH CONTROLS */}
         {!loading && heatmapData.length > 0 && (
-          <div className="p-6 md:p-8 rounded-3xl bg-[#11151e] border border-white/[0.05] shadow-2xl overflow-hidden">
-            
+          <div className="p-6 md:p-8 rounded-3xl bg-[#11151e] border border-white/[0.05] shadow-2xl overflow-hidden flex flex-col">
+
             {/* Heatmap Header & Legend */}
-            <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 space-y-4 md:space-y-0">
+            <div className="flex flex-col md:flex-row md:items-end justify-between mb-6 space-y-4 md:space-y-0">
               <div>
                 <h2 className="text-xl font-semibold text-white">Division Inflation Heatmap</h2>
                 <p className="text-sm text-slate-400 mt-1">Year-over-Year percentage change across all 12 COICOP divisions.</p>
               </div>
-              
+
               <div className="flex items-center space-x-3 bg-black/20 p-3 rounded-xl border border-white/5">
                 <span className="text-xs font-medium text-emerald-400 uppercase tracking-wider">Cool</span>
                 <div className="flex space-x-1">
@@ -202,13 +201,59 @@ const UkEconomyDashboard = () => {
               </div>
             </div>
 
+            {/* --- INTERACTIVE CONTROL BAR --- */}
+            <div className="flex flex-col lg:flex-row gap-4 mb-8 bg-white/[0.02] p-4 rounded-2xl border border-white/5">
+              
+              {/* Search Box */}
+              <div className="relative flex-grow">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Search size={16} className="text-slate-500" />
+                </div>
+                <input
+                  type="text"
+                  className="w-full bg-[#0b0e14] border border-white/10 text-sm rounded-xl pl-10 pr-4 py-2.5 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 transition-all"
+                  placeholder="Search division (e.g. Food)..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+
+              {/* Sort Dropdown */}
+              <div className="flex items-center space-x-2">
+                <SlidersHorizontal size={16} className="text-slate-500" />
+                <select 
+                  className="bg-[#0b0e14] border border-white/10 text-sm rounded-xl px-4 py-2.5 text-slate-200 focus:outline-none focus:border-indigo-500/50 appearance-none cursor-pointer"
+                  value={sortOrder}
+                  onChange={(e) => setSortOrder(e.target.value)}
+                >
+                  <option value="alphabetical">Sort: Alphabetical (A-Z)</option>
+                  <option value="hottest">Sort: Highest Current Rate</option>
+                  <option value="coldest">Sort: Lowest Current Rate</option>
+                </select>
+              </div>
+
+               {/* Filter Dropdown */}
+               <div className="flex items-center space-x-2">
+                <select 
+                  className="bg-[#0b0e14] border border-white/10 text-sm rounded-xl px-4 py-2.5 text-slate-200 focus:outline-none focus:border-indigo-500/50 appearance-none cursor-pointer"
+                  value={severityFilter}
+                  onChange={(e) => setSeverityFilter(e.target.value)}
+                >
+                  <option value="all">Show All Divisions</option>
+                  <option value="hot">Show Only Running Hot (&gt; 3%)</option>
+                  <option value="extreme">Show Only Extreme (&gt; 5%)</option>
+                </select>
+              </div>
+
+            </div>
+
             {/* Scrollable Grid Container */}
             <div className="overflow-x-auto pb-4 custom-scrollbar">
               <div className="min-w-[900px]">
                 
                 {/* X-Axis (Months) */}
                 <div className="flex mb-3">
-                  <div className="w-64 flex-shrink-0"></div> {/* Spacer for Y-axis labels */}
+                  <div className="w-64 flex-shrink-0"></div>
                   <div className="flex-grow grid grid-cols-12 gap-2">
                     {periods.map((period, idx) => (
                       <div key={idx} className="text-center text-xs font-semibold tracking-wider text-slate-500 uppercase">
@@ -219,52 +264,53 @@ const UkEconomyDashboard = () => {
                 </div>
 
                 {/* Y-Axis (Divisions) + Cells */}
-                <div className="space-y-2">
-                  {matrix.map((row, rowIdx) => (
-                    <div key={rowIdx} className="flex items-center group">
-                      
-                      {/* Row Label */}
-                      <div className="w-64 flex-shrink-0 text-sm font-medium text-slate-400 truncate pr-6 group-hover:text-white transition-colors duration-300">
-                        {row.division}
-                      </div>
-                      
-                      {/* Row Cells */}
-                      <div className="flex-grow grid grid-cols-12 gap-2">
-                        {row.values.map((val, colIdx) => (
-                          <div 
-                            key={colIdx} 
-                            className={`
-                              relative h-12 rounded-lg flex items-center justify-center 
-                              transition-all duration-300 ease-out cursor-pointer
-                              hover:scale-[1.15] hover:z-10 hover:shadow-xl hover:shadow-black/50 hover:ring-2 hover:ring-white/40
-                              ${getHeatmapColor(val)}
-                            `}
-                          >
-                            <span className="text-[13px] font-bold tracking-tight">
-                              {val !== null ? `${val.toFixed(1)}` : '-'}
-                            </span>
-                            
-                            {/* Hover Tooltip (CSS only, highly performant) */}
-                            <div className="absolute opacity-0 group-hover/cell:opacity-100 transition-opacity pointer-events-none bottom-full mb-2 bg-[#0f172a] border border-slate-700 text-white text-xs rounded-lg py-2 px-3 whitespace-nowrap shadow-xl z-20">
-                              <p className="font-semibold text-indigo-300 mb-1">{row.division}</p>
-                              <p>{periods[colIdx]}: <span className="font-bold">{val}% YoY</span></p>
+                <div className="space-y-2 min-h-[300px]">
+                  {matrix.length === 0 ? (
+                    <div className="text-center py-12 text-slate-500 italic">No divisions match your current filters.</div>
+                  ) : (
+                    matrix.map((row, rowIdx) => (
+                      <div key={rowIdx} className="flex items-center group">
+                        
+                        {/* Row Label */}
+                        <div className="w-64 flex-shrink-0 text-sm font-medium text-slate-400 truncate pr-6 group-hover:text-white transition-colors duration-300">
+                          {row.division}
+                        </div>
+
+                        {/* Row Cells */}
+                        <div className="flex-grow grid grid-cols-12 gap-2">
+                          {row.values.map((val, colIdx) => (
+                            <div 
+                              key={colIdx}
+                              className={`
+                                relative h-12 rounded-lg flex items-center justify-center 
+                                transition-all duration-300 ease-out cursor-pointer
+                                hover:scale-[1.15] hover:z-10 hover:shadow-xl hover:shadow-black/50 hover:ring-2 hover:ring-white/40
+                                ${getHeatmapColor(val)}
+                              `}
+                            >
+                              <span className="text-[13px] font-bold tracking-tight">
+                                {val !== null ? `${val.toFixed(1)}` : '-'}
+                              </span>
+
+                              {/* Hover Tooltip */}
+                              <div className="absolute opacity-0 group-hover/cell:opacity-100 transition-opacity pointer-events-none bottom-full mb-2 bg-[#0f172a] border border-slate-700 text-white text-xs rounded-lg py-2 px-3 whitespace-nowrap shadow-xl z-20">
+                                <p className="font-semibold text-indigo-300 mb-1">{row.division}</p>
+                                <p>{periods[colIdx]}: <span className="font-bold">{val}% YoY</span></p>
+                              </div>
                             </div>
-
-                          </div>
-                        ))}
+                          ))}
+                        </div>
                       </div>
-
-                    </div>
-                  ))}
+                    ))
+                  )}
                 </div>
 
               </div>
             </div>
-            
+
           </div>
         )}
       </div>
-
     </div>
   );
 };
