@@ -1,8 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { Activity, Target, TrendingDown, TrendingUp, AlertCircle, Calendar, Search, SlidersHorizontal } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Activity, Target, TrendingDown, TrendingUp, AlertCircle, Calendar, Search, SlidersHorizontal, Zap, Coins } from 'lucide-react';
 
-// For this preview environment, we use a built-in fetch wrapper that points directly
-// to your live Django backend, mimicking your local axios setup without mock data.
+// Standard HTTP API wrapper
 const api = {
   get: async (path) => {
     const response = await fetch(`https://api.franciscodes.com${path}`);
@@ -42,17 +41,66 @@ const KPICard = ({ title, value, subtext, icon: Icon, trendColor }) => (
   </div>
 );
 
+// 🌟 NEW: The Live Flashing Ticker Component
+const LivePriceCard = ({ symbol, title, price, icon: Icon }) => {
+  const prevPriceRef = useRef(price);
+  const [flashClass, setFlashClass] = useState('');
+
+  useEffect(() => {
+    if (price && prevPriceRef.current) {
+      if (price > prevPriceRef.current) {
+        setFlashClass('bg-emerald-500/20 border-emerald-500/50'); // Tick Up
+      } else if (price < prevPriceRef.current) {
+        setFlashClass('bg-rose-500/20 border-rose-500/50'); // Tick Down
+      }
+      
+      // Remove the flash after 300ms
+      const timer = setTimeout(() => setFlashClass('bg-white/[0.02] border-indigo-500/30'), 300);
+      prevPriceRef.current = price;
+      return () => clearTimeout(timer);
+    }
+  }, [price]);
+
+  return (
+    <div className={`flex items-center justify-between p-4 rounded-2xl border transition-colors duration-300 ${flashClass || 'bg-white/[0.02] border-indigo-500/30 shadow-[0_0_15px_rgba(99,102,241,0.2)]'}`}>
+      <div className="flex items-center space-x-3">
+        <div className="p-2 rounded-lg bg-indigo-500/20 text-indigo-300">
+          <Icon size={20} />
+        </div>
+        <div>
+          <p className="text-xs font-semibold text-slate-400 tracking-wider uppercase">{title}</p>
+          <p className="text-xs text-slate-500 font-mono mt-0.5">{symbol}</p>
+        </div>
+      </div>
+      <div className="text-right">
+        <span className="text-2xl font-mono tracking-tight text-white">
+          {price ? Number(price).toLocaleString(undefined, { minimumFractionDigits: 4, maximumFractionDigits: 4 }) : 'Connecting...'}
+        </span>
+        <div className="flex items-center justify-end space-x-1 mt-1">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span className="text-[10px] text-emerald-400 font-medium uppercase tracking-widest">Live</span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+
 const UkEconomyDashboard = () => {
+  // Static Data State
   const [liveKpis, setLiveKpis] = useState(null);
   const [heatmapData, setHeatmapData] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // --- INTERACTIVITY STATE ---
+  // Interactivity State
   const [searchTerm, setSearchTerm] = useState('');
-  const [sortOrder, setSortOrder] = useState('alphabetical'); // 'alphabetical', 'hottest', 'coldest'
-  const [severityFilter, setSeverityFilter] = useState('all'); // 'all', 'hot', 'extreme'
+  const [sortOrder, setSortOrder] = useState('alphabetical'); 
+  const [severityFilter, setSeverityFilter] = useState('all');
 
-  // Data Fetching Logic
+  // 🌟 NEW: Live Streaming State
+  const [livePrices, setLivePrices] = useState({});
+
+  // 1. Fetch Static Historical Data (Postgres -> Superset)
   useEffect(() => {
     let isMounted = true;
     let timeoutId;
@@ -60,14 +108,10 @@ const UkEconomyDashboard = () => {
     const fetchDashboardData = async () => {
       try {
         const response = await api.get('/api/economy/kpis/');
-
         if (response.status === 202 || response.data.status === 'loading') {
-          if (isMounted) {
-            timeoutId = setTimeout(fetchDashboardData, 3000);
-          }
+          if (isMounted) timeoutId = setTimeout(fetchDashboardData, 3000);
           return;
         }
-
         if (response.data.status === 'success' && isMounted) {
           setLiveKpis(response.data.kpis);
           setHeatmapData(response.data.charts?.heatmap_array || []);
@@ -87,43 +131,51 @@ const UkEconomyDashboard = () => {
     };
   }, []);
 
+  // 🌟 NEW 2. Connect to the Real-Time WebSocket (Finnhub -> Redis -> Channels)
+  useEffect(() => {
+    // Note: We use WSS (WebSocket Secure) to match your HTTPS API domain
+    const ws = new WebSocket('wss://api.franciscodes.com/ws/live-prices/');
+
+    ws.onopen = () => console.log('🟢 React Connected to Live Stream!');
+    
+    ws.onmessage = (event) => {
+      const tick = JSON.parse(event.data);
+      // Instantly update the state with the newest price
+      setLivePrices((prev) => ({
+        ...prev,
+        [tick.symbol]: tick.price
+      }));
+    };
+
+    ws.onerror = (error) => console.error('WebSocket Error:', error);
+    ws.onclose = () => console.log('🔴 React Disconnected from Live Stream');
+
+    // Clean up the connection if the user leaves the page
+    return () => {
+      if (ws.readyState === 1) ws.close();
+    };
+  }, []);
+
   // --- HEATMAP MATRIX PROCESSING & FILTERING ---
   const periods = [...new Set(heatmapData.map(d => d.period))].sort((a, b) => new Date(a) - new Date(b));
-  const latestPeriod = periods[periods.length - 1]; 
-  
+  const latestPeriod = periods[periods.length - 1];
   let rawDivisions = [...new Set(heatmapData.map(d => d.division_name))];
 
-  // 1. Calculate stats for each division to enable intelligent sorting/filtering
   let divisionStats = rawDivisions.map(div => {
     const latestRecord = heatmapData.find(d => d.division_name === div && d.period === latestPeriod);
     const latestValue = latestRecord ? latestRecord.yoy_pct : -999;
     const maxValue = Math.max(...heatmapData.filter(d => d.division_name === div).map(d => d.yoy_pct || -999));
-    
     return { name: div, latestValue, maxValue };
   });
 
-  // 2. Apply Search Filter
-  if (searchTerm) {
-    divisionStats = divisionStats.filter(d => d.name.toLowerCase().includes(searchTerm.toLowerCase()));
-  }
+  if (searchTerm) divisionStats = divisionStats.filter(d => d.name.toLowerCase().includes(searchTerm.toLowerCase()));
+  if (severityFilter === 'hot') divisionStats = divisionStats.filter(d => d.maxValue >= 3.0);
+  else if (severityFilter === 'extreme') divisionStats = divisionStats.filter(d => d.maxValue >= 5.0);
 
-  // 3. Apply Severity Filter (Filters by the highest spike in the 12-month period)
-  if (severityFilter === 'hot') {
-    divisionStats = divisionStats.filter(d => d.maxValue >= 3.0);
-  } else if (severityFilter === 'extreme') {
-    divisionStats = divisionStats.filter(d => d.maxValue >= 5.0);
-  }
+  if (sortOrder === 'hottest') divisionStats.sort((a, b) => b.latestValue - a.latestValue);
+  else if (sortOrder === 'coldest') divisionStats.sort((a, b) => a.latestValue - b.latestValue);
+  else divisionStats.sort((a, b) => a.name.localeCompare(b.name));
 
-  // 4. Apply Sort Order (Sorts based on the most recent month's data)
-  if (sortOrder === 'hottest') {
-    divisionStats.sort((a, b) => b.latestValue - a.latestValue);
-  } else if (sortOrder === 'coldest') {
-    divisionStats.sort((a, b) => a.latestValue - b.latestValue);
-  } else {
-    divisionStats.sort((a, b) => a.name.localeCompare(b.name));
-  }
-
-  // 5. Build final rendered matrix
   const matrix = divisionStats.map(divStat => {
     return {
       division: divStat.name,
@@ -136,9 +188,9 @@ const UkEconomyDashboard = () => {
 
   return (
     <div className="min-h-screen px-4 py-8 md:px-8 lg:px-12 bg-[#0b0e14] text-slate-200">
-      
+
       {/* HEADER */}
-      <div className="max-w-[1400px] mx-auto mb-10">
+      <div className="max-w-[1400px] mx-auto mb-8">
         <div className="flex flex-col md:flex-row md:items-end justify-between border-b border-white/10 pb-6">
           <div>
             <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-xs font-semibold tracking-widest uppercase mb-4">
@@ -157,8 +209,24 @@ const UkEconomyDashboard = () => {
       </div>
 
       <div className="max-w-[1400px] mx-auto space-y-8">
-        
-        {/* KPI ROW */}
+
+        {/* 🌟 NEW: LIVE MARKET STREAM ROW */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+           <LivePriceCard 
+              title="British Pound (Forex)" 
+              symbol="GBP/USD" 
+              price={livePrices['OANDA:GBP_USD']} 
+              icon={Activity} 
+            />
+           <LivePriceCard 
+              title="Bitcoin (Crypto)" 
+              symbol="BTC/USDT" 
+              price={livePrices['BINANCE:BTCUSDT']} 
+              icon={Coins} 
+            />
+        </div>
+
+        {/* STATIC KPI ROW */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {loading || !liveKpis ? (
             Array(4).fill(0).map((_, i) => (
@@ -203,8 +271,6 @@ const UkEconomyDashboard = () => {
 
             {/* --- INTERACTIVE CONTROL BAR --- */}
             <div className="flex flex-col lg:flex-row gap-4 mb-8 bg-white/[0.02] p-4 rounded-2xl border border-white/5">
-              
-              {/* Search Box */}
               <div className="relative flex-grow">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <Search size={16} className="text-slate-500" />
@@ -218,10 +284,9 @@ const UkEconomyDashboard = () => {
                 />
               </div>
 
-              {/* Sort Dropdown */}
               <div className="flex items-center space-x-2">
                 <SlidersHorizontal size={16} className="text-slate-500" />
-                <select 
+                <select
                   className="bg-[#0b0e14] border border-white/10 text-sm rounded-xl px-4 py-2.5 text-slate-200 focus:outline-none focus:border-indigo-500/50 appearance-none cursor-pointer"
                   value={sortOrder}
                   onChange={(e) => setSortOrder(e.target.value)}
@@ -232,9 +297,8 @@ const UkEconomyDashboard = () => {
                 </select>
               </div>
 
-               {/* Filter Dropdown */}
                <div className="flex items-center space-x-2">
-                <select 
+                <select
                   className="bg-[#0b0e14] border border-white/10 text-sm rounded-xl px-4 py-2.5 text-slate-200 focus:outline-none focus:border-indigo-500/50 appearance-none cursor-pointer"
                   value={severityFilter}
                   onChange={(e) => setSeverityFilter(e.target.value)}
@@ -244,14 +308,11 @@ const UkEconomyDashboard = () => {
                   <option value="extreme">Show Only Extreme (&gt; 5%)</option>
                 </select>
               </div>
-
             </div>
 
             {/* Scrollable Grid Container */}
             <div className="overflow-x-auto pb-4 custom-scrollbar">
               <div className="min-w-[900px]">
-                
-                {/* X-Axis (Months) */}
                 <div className="flex mb-3">
                   <div className="w-64 flex-shrink-0"></div>
                   <div className="flex-grow grid grid-cols-12 gap-2">
@@ -263,36 +324,24 @@ const UkEconomyDashboard = () => {
                   </div>
                 </div>
 
-                {/* Y-Axis (Divisions) + Cells */}
                 <div className="space-y-2 min-h-[300px]">
                   {matrix.length === 0 ? (
                     <div className="text-center py-12 text-slate-500 italic">No divisions match your current filters.</div>
                   ) : (
                     matrix.map((row, rowIdx) => (
                       <div key={rowIdx} className="flex items-center group">
-                        
-                        {/* Row Label */}
                         <div className="w-64 flex-shrink-0 text-sm font-medium text-slate-400 truncate pr-6 group-hover:text-white transition-colors duration-300">
                           {row.division}
                         </div>
-
-                        {/* Row Cells */}
                         <div className="flex-grow grid grid-cols-12 gap-2">
                           {row.values.map((val, colIdx) => (
-                            <div 
+                            <div
                               key={colIdx}
-                              className={`
-                                relative h-12 rounded-lg flex items-center justify-center 
-                                transition-all duration-300 ease-out cursor-pointer
-                                hover:scale-[1.15] hover:z-10 hover:shadow-xl hover:shadow-black/50 hover:ring-2 hover:ring-white/40
-                                ${getHeatmapColor(val)}
-                              `}
+                              className={`relative h-12 rounded-lg flex items-center justify-center transition-all duration-300 ease-out cursor-pointer hover:scale-[1.15] hover:z-10 hover:shadow-xl hover:shadow-black/50 hover:ring-2 hover:ring-white/40 ${getHeatmapColor(val)}`}
                             >
                               <span className="text-[13px] font-bold tracking-tight">
                                 {val !== null ? `${val.toFixed(1)}` : '-'}
                               </span>
-
-                              {/* Hover Tooltip */}
                               <div className="absolute opacity-0 group-hover/cell:opacity-100 transition-opacity pointer-events-none bottom-full mb-2 bg-[#0f172a] border border-slate-700 text-white text-xs rounded-lg py-2 px-3 whitespace-nowrap shadow-xl z-20">
                                 <p className="font-semibold text-indigo-300 mb-1">{row.division}</p>
                                 <p>{periods[colIdx]}: <span className="font-bold">{val}% YoY</span></p>
@@ -304,10 +353,8 @@ const UkEconomyDashboard = () => {
                     ))
                   )}
                 </div>
-
               </div>
             </div>
-
           </div>
         )}
       </div>
