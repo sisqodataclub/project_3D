@@ -1,251 +1,106 @@
-import React, { useMemo, useState } from "react";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-} from "recharts";
-import { motion } from "framer-motion";
-import { Truck, Users, PoundSterling, Trophy } from "lucide-react";
+import React from 'react';
+import { Users, Eye, ShoppingCart, CreditCard, CheckCircle, TrendingDown } from 'lucide-react';
 
-const COLORS = ["#6366F1", "#0EA5E9", "#10B981", "#F59E0B", "#EF4444"];
+const EcommerceFunnel = () => {
+  // This mimics the exact output of your BigQuery SQL!
+  const rawData = [
+    { event_name: 'session_start', unique_users: 142053, icon: Users, label: 'Total Visitors' },
+    { event_name: 'view_item', unique_users: 85402, icon: Eye, label: 'Viewed Product' },
+    { event_name: 'add_to_cart', unique_users: 28930, icon: ShoppingCart, label: 'Added to Cart' },
+    { event_name: 'begin_checkout', unique_users: 12405, icon: CreditCard, label: 'Began Checkout' },
+    { event_name: 'purchase', unique_users: 3204, icon: CheckCircle, label: 'Purchased' }
+  ];
 
-// -------------------------------------------------------------
-// Fake Data
-// -------------------------------------------------------------
-const drivers = [
-  { id: 1, name: "James", area: "London" },
-  { id: 2, name: "Daniel", area: "Manchester" },
-  { id: 3, name: "Kwame", area: "Birmingham" },
-  { id: 4, name: "Oliver", area: "Leeds" },
-];
+  const maxUsers = rawData[0].unique_users;
 
-const jobs = [
-  { id: 1, service: "House Move", price: 180 },
-  { id: 2, service: "Office Move", price: 320 },
-  { id: 3, service: "Single Item", price: 75 },
-  { id: 4, service: "Student Move", price: 120 },
-];
-
-const bookings = [
-  { id: 101, date: "2025-11-03T09:30:00", jobId: 1, driverId: 1, hours: 3 },
-  { id: 102, date: "2025-11-03T14:15:00", jobId: 3, driverId: 2, hours: 1 },
-  { id: 103, date: "2025-11-04T11:00:00", jobId: 2, driverId: 3, hours: 4 },
-  { id: 104, date: "2025-11-05T10:45:00", jobId: 4, driverId: 1, hours: 2 },
-  { id: 105, date: "2025-11-06T13:30:00", jobId: 1, driverId: 4, hours: 3 },
-  { id: 106, date: "2025-11-07T15:10:00", jobId: 3, driverId: 2, hours: 1 },
-  { id: 107, date: "2025-11-08T09:00:00", jobId: 2, driverId: 3, hours: 5 },
-];
-
-// -------------------------------------------------------------
-// Utilities
-// -------------------------------------------------------------
-const formatCurrency = (value) =>
-  new Intl.NumberFormat("en-GB", {
-    style: "currency",
-    currency: "GBP",
-  }).format(value);
-
-// -------------------------------------------------------------
-// Main Component
-// -------------------------------------------------------------
-export default function ManVanAnalyticsDashboard() {
-  const [range, setRange] = useState("7d");
-
-  // ----------------------------
-  // Revenue Stats
-  // ----------------------------
-  const totalRevenue = useMemo(() => {
-    return bookings.reduce((sum, b) => {
-      const job = jobs.find((j) => j.id === b.jobId);
-      return sum + (job?.price || 0);
-    }, 0);
-  }, []);
-
-  const totalJobs = bookings.length;
-  const avgJobValue = totalRevenue / totalJobs || 0;
-
-  // ----------------------------
-  // Driver Summary
-  // ----------------------------
-  const driverSummary = useMemo(() => {
-    const map = {};
-    drivers.forEach((d) => (map[d.id] = { ...d, revenue: 0, jobs: 0 }));
-
-    bookings.forEach((b) => {
-      const job = jobs.find((j) => j.id === b.jobId);
-      const driver = map[b.driverId];
-      if (!job || !driver) return;
-      driver.revenue += job.price;
-      driver.jobs += 1;
-    });
-
-    return Object.values(map).sort((a, b) => b.revenue - a.revenue);
-  }, []);
-
-  // ----------------------------
-  // Revenue by Day of Week
-  // ----------------------------
-  const dailyRevenue = useMemo(() => {
-    const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-    const map = {};
-
-    days.forEach((d) => (map[d] = 0));
-
-    bookings.forEach((b) => {
-      const job = jobs.find((j) => j.id === b.jobId);
-      const day = days[new Date(b.date).getDay()];
-      map[day] += job?.price || 0;
-    });
-
-    return days.map((d) => ({ day: d, revenue: map[d] }));
-  }, []);
-
-  // ----------------------------
-  // Service Breakdown
-  // ----------------------------
-  const serviceSummary = useMemo(() => {
-    const map = {};
-    jobs.forEach((j) => (map[j.service] = 0));
-
-    bookings.forEach((b) => {
-      const job = jobs.find((j) => j.id === b.jobId);
-      if (!job) return;
-      map[job.service] += job.price;
-    });
-
-    return Object.keys(map).map((k) => ({ name: k, value: map[k] }));
-  }, []);
-
-  // ----------------------------
-  // Render
-  // ----------------------------
   return (
-    <div className="min-h-screen bg-[#0f0f10] text-gray-200 p-6">
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-
+    <div className="min-h-screen bg-[#0b0e14] text-slate-200 p-8">
+      <div className="max-w-4xl mx-auto">
+        
         {/* Header */}
-        <header className="flex justify-between items-center mb-6">
-          <div>
-            <h1 className="text-3xl font-bold text-white">
-              Man & Van Analytics Dashboard
-            </h1>
-            <p className="text-sm text-gray-400">Client demo overview</p>
+        <div className="mb-10 border-b border-white/10 pb-6">
+          <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-xs font-semibold tracking-widest uppercase mb-4">
+            <span>GA4 E-Commerce Analytics</span>
           </div>
-
-          <select
-            value={range}
-            onChange={(e) => setRange(e.target.value)}
-            className="bg-gray-800 border border-gray-700 rounded px-3 py-1 text-sm"
-          >
-            <option value="7d">Last 7 days</option>
-            <option value="30d">Last 30 days</option>
-            <option value="90d">Last 90 days</option>
-          </select>
-        </header>
-
-        {/* Stat Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <StatCard title="Total Revenue" value={formatCurrency(totalRevenue)} icon={<PoundSterling />} />
-          <StatCard title="Jobs Completed" value={totalJobs} icon={<Truck />} />
-          <StatCard title="Top Driver" value={driverSummary[0]?.name} icon={<Users />} />
-          <StatCard title="Avg Job Value" value={formatCurrency(avgJobValue)} icon={<Trophy />} />
+          <h1 className="text-3xl md:text-4xl font-extralight tracking-tight text-white">
+            Customer <span className="font-semibold text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-cyan-400">Conversion Funnel</span>
+          </h1>
+          <p className="text-slate-500 mt-2">Tracking user drop-off from initial visit to final purchase.</p>
         </div>
 
-        {/* Daily Revenue */}
-        <section className="bg-gray-900 rounded-xl p-4 shadow-xl mb-6">
-          <h2 className="font-semibold mb-3 text-white">Revenue by Day</h2>
-          <div className="h-72">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={dailyRevenue}>
-                <CartesianGrid stroke="#333" />
-                <XAxis dataKey="day" stroke="#ccc" />
-                <YAxis stroke="#ccc" />
-                <Tooltip formatter={(v) => formatCurrency(v)} />
-                <Bar dataKey="revenue" fill="#6366F1" />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </section>
+        {/* Funnel Visualization */}
+        <div className="space-y-6">
+          {rawData.map((step, index) => {
+            const Icon = step.icon;
+            const percentageOfTotal = (step.unique_users / maxUsers) * 100;
+            
+            // Calculate drop-off from the PREVIOUS step
+            let dropOff = null;
+            if (index > 0) {
+              const prevUsers = rawData[index - 1].unique_users;
+              const dropPercentage = ((prevUsers - step.unique_users) / prevUsers) * 100;
+              dropOff = dropPercentage.toFixed(1);
+            }
 
-        {/* Services + Drivers */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <section className="lg:col-span-2 bg-gray-900 rounded-xl p-4 shadow-xl">
-            <h3 className="font-medium mb-3 text-white">Driver Leaderboard</h3>
-            <DriverLeaderboard list={driverSummary} />
-          </section>
+            return (
+              <div key={step.event_name} className="relative">
+                
+                {/* Drop-off Indicator (Between Steps) */}
+                {dropOff && (
+                  <div className="absolute -top-5 right-4 md:right-1/4 flex items-center space-x-1 text-rose-400 bg-rose-500/10 px-2 py-1 rounded-md border border-rose-500/20 z-10 text-xs font-mono">
+                    <TrendingDown size={14} />
+                    <span>-{dropOff}% loss</span>
+                  </div>
+                )}
 
-          <aside className="bg-gray-900 rounded-xl p-4 shadow-xl">
-            <h3 className="font-medium mb-3 text-white">Revenue by Service</h3>
-            <div className="h-48">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie data={serviceSummary} dataKey="value" nameKey="name" outerRadius={70} label>
-                    {serviceSummary.map((_, i) => (
-                      <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip formatter={(v) => formatCurrency(v)} />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-          </aside>
+                {/* Main Step Card */}
+                <div className="flex items-center p-4 rounded-2xl bg-white/[0.02] border border-white/[0.05] relative overflow-hidden group hover:bg-white/[0.04] transition-colors">
+                  
+                  {/* Background Progress Bar */}
+                  <div 
+                    className="absolute top-0 left-0 h-full bg-gradient-to-r from-indigo-500/10 to-cyan-500/10 transition-all duration-1000 ease-out"
+                    style={{ width: `${percentageOfTotal}%` }}
+                  />
+                  
+                  {/* Content */}
+                  <div className="relative z-10 flex items-center justify-between w-full">
+                    <div className="flex items-center space-x-4">
+                      <div className="p-3 rounded-xl bg-slate-800/80 text-indigo-400 border border-white/5 shadow-lg">
+                        <Icon size={24} />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-medium text-white">{step.label}</h3>
+                        <p className="text-xs text-slate-500 font-mono mt-0.5">{step.event_name}</p>
+                      </div>
+                    </div>
+                    
+                    <div className="text-right">
+                      <span className="text-2xl font-light tracking-tight text-white">
+                        {step.unique_users.toLocaleString()}
+                      </span>
+                      <p className="text-sm font-medium text-slate-400">
+                        {percentageOfTotal.toFixed(1)}% of total
+                      </p>
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+            );
+          })}
         </div>
 
-      </motion.div>
-    </div>
-  );
-}
+        {/* Summary Metric */}
+        <div className="mt-12 p-6 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-center">
+          <p className="text-sm font-medium text-emerald-400 uppercase tracking-widest mb-1">Overall Conversion Rate</p>
+          <p className="text-4xl font-light text-white">
+            {((rawData[rawData.length - 1].unique_users / maxUsers) * 100).toFixed(2)}%
+          </p>
+        </div>
 
-// -------------------------------------------------------------
-// Components
-// -------------------------------------------------------------
-function StatCard({ title, value, icon }) {
-  return (
-    <div className="bg-gray-900 rounded-xl p-4 flex gap-3 shadow-md">
-      <div className="w-12 h-12 flex items-center justify-center rounded-full bg-gray-800">
-        {icon}
-      </div>
-      <div>
-        <div className="text-xs text-gray-400">{title}</div>
-        <div className="text-lg font-semibold text-white">{value}</div>
       </div>
     </div>
   );
-}
+};
 
-function DriverLeaderboard({ list }) {
-  const max = Math.max(...list.map((d) => d.revenue));
-
-  return (
-    <div className="space-y-2">
-      {list.map((d, i) => (
-        <div key={d.id} className="flex justify-between items-center p-2 rounded hover:bg-gray-800">
-          <div className="flex gap-3 items-center">
-            <span className="text-gray-400 w-5">{i + 1}</span>
-            <div>
-              <div className="font-medium text-white">{d.name}</div>
-              <div className="text-xs text-gray-500">{d.area}</div>
-            </div>
-          </div>
-          <div className="w-32">
-            <div className="text-sm text-white">{formatCurrency(d.revenue)}</div>
-            <div className="h-1 bg-gray-700 rounded mt-1">
-              <div
-                className="h-1 bg-indigo-500 rounded"
-                style={{ width: `${(d.revenue / max) * 100}%` }}
-              />
-            </div>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
+export default EcommerceFunnel;
