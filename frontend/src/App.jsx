@@ -93,9 +93,9 @@ const App = () => {
 
               {/* Dashboards */}
               <Route path="/dashboard" element={<PerfumeAnalyticsDashboard />} />
-              <Route path="/manvan" element={<ManVanAnalyticsDashboard />} />
+              <Route path="/conversion" element={<ManVanAnalyticsDashboard />} />
 
-	      <Route path="/economy" element={<UkEconomyDashboard />} />
+	      <Route path="/uklive" element={<UkEconomyDashboard />} />
 
               {/* Protected Route */}
               <Route path="/profile" element={

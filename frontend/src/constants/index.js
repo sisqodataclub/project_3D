@@ -227,22 +227,57 @@ const testimonials = [
 
 
 
-
-
 const projects = [
   {
-    name: "Data Club Center",
-    category: "Websites",
+    name: "Uk Live Data",
+    category: "Dashboards",
     description:
-      "Data Club Center offers comprehensive support solutions for small businesses, providing scalable infrastructure and strategic digital management.",
+      "A live economic dashboard powered by publicly available datasets from the ONS and other UK government agencies. Tracks key indicators—GDP, inflation, employment—to deliver real‑time insights into the country’s economic health.",
     tags: [
       { name: "react", color: "blue-text-gradient" },
-      { name: "mongodb", color: "green-text-gradient" },
+      { name: "Postgress", color: "green-text-gradient" },
       { name: "tailwind", color: "pink-text-gradient" },
+      { name: "Airflow", color: "orange-text-gradient" },
+      { name: "dbt", color: "purple-text-gradient" },
+      { name: "Django", color: "red-text-gradient" },
+      { name: "apache-superset", color: "teal-text-gradient" },
     ],
-    image: carrent, // Assuming this is imported at the top of your file
-    source_code_link: "https://www.dataclubcenter.com/",
+    image: "https://api.microlink.io/?url=https://www.franciscodes.com/uklive&screenshot=true&meta=false&embed=screenshot.url",
+    source_code_link: "https://www.franciscodes.com/uklive",
   },
+
+  {
+    name: "Customer Conversion Funnel",
+    category: "Dashboards",
+    description:
+      "An advanced analytics dashboard for GA4 eCommerce data. Uses BigQuery to model and visualise customer conversion funnels, helping teams optimise marketing spend and on‑site performance.",
+    tags: [
+      { name: "react", color: "blue-text-gradient" },
+      { name: "BigQuery", color: "green-text-gradient" },
+      { name: "tailwind", color: "pink-text-gradient" },
+      { name: "Airflow", color: "orange-text-gradient" },
+      { name: "dbt", color: "purple-text-gradient" },
+      { name: "Django", color: "red-text-gradient" },
+      { name: "apache-superset", color: "teal-text-gradient" },
+    ],
+    image: "https://api.microlink.io/?url=https://www.franciscodes.com/conversion&screenshot=true&meta=false&embed=screenshot.url",
+    source_code_link: "https://www.franciscodes.com/conversion",
+  },
+
+  {
+    name: "Market Research Blogs",
+    category: "Blogs",
+    description:
+      "A collection of in‑depth economic and financial analytical posts. Features data‑driven narratives, market commentary, and research‑backed insights into current UK and global economic trends.",
+    tags: [
+      { name: "react", color: "blue-text-gradient" },
+      { name: "postgress", color: "green-text-gradient" },
+      { name: "tailwind", color: "orange-text-gradient" },
+    ],
+    image: "https://api.microlink.io/?url=https://www.franciscodes.com/dashboard&screenshot=true&meta=false&embed=screenshot.url",
+    source_code_link: "https://www.franciscodes.com/dashboard",
+  },
+
   {
     name: "Equiva Iconic",
     category: "Websites",
@@ -251,13 +286,13 @@ const projects = [
     tags: [
       { name: "react", color: "blue-text-gradient" },
       { name: "postgres", color: "green-text-gradient" },
-      { name: "docker", color: "blue-text-gradient" },
+      { name: "docker", color: "orange-text-gradient" },
       { name: "stripe", color: "red-text-gradient" },
     ],
-    // Fetches live screenshot automatically
     image: "https://api.microlink.io/?url=https://www.equivaiconic.co.uk&screenshot=true&meta=false&embed=screenshot.url",
     source_code_link: "https://www.equivaiconic.co.uk/",
   },
+
   {
     name: "DDeep Cleaning Services",
     category: "Websites",
@@ -266,13 +301,13 @@ const projects = [
     tags: [
       { name: "react", color: "blue-text-gradient" },
       { name: "tailwind", color: "pink-text-gradient" },
-      { name: "docker", color: "blue-text-gradient" },
+      { name: "docker", color: "orange-text-gradient" },
       { name: "framer-motion", color: "green-text-gradient" },
     ],
-    // Fetches live screenshot automatically
     image: "https://api.microlink.io/?url=https://www.ddeepcleaningservices.com/&screenshot=true&meta=false&embed=screenshot.url",
     source_code_link: "https://www.ddeepcleaningservices.com/",
   },
+
   {
     name: "Enterprise Analytics Dashboard",
     category: "Dashboards",
@@ -283,10 +318,10 @@ const projects = [
       { name: "django-api", color: "green-text-gradient" },
       { name: "apache-superset", color: "pink-text-gradient" },
     ],
-    // Pointing directly to the production dashboard you just deployed!
     image: "https://api.microlink.io/?url=https://dcs.franciscodes.com&screenshot=true&meta=false&embed=screenshot.url",
     source_code_link: "https://dcs.franciscodes.com/",
   },
+
   {
     name: "Data Overview",
     category: "Data Science",
@@ -297,10 +332,14 @@ const projects = [
       { name: "django", color: "green-text-gradient" },
       { name: "dataoverview", color: "pink-text-gradient" },
     ],
-    image: jobit, // Assuming this is imported at the top of your file
+    image: jobit,   // Keep your existing import
     source_code_link: "https://github.com/sisqodataclub/ml-ds/blob/e1881098af0298f8b932c7b066e5cb75214c0233/Data_Overview.ipynb/",
   }
 ];
+
+
+
+
 
 export { services, technologies, experiences, testimonials, projects };
 

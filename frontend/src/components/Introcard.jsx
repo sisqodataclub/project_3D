@@ -1,23 +1,77 @@
+import { useState } from "react";
 import { motion } from "framer-motion";
-import { FaGithub, FaLinkedin, FaTwitter, FaEnvelope, FaArrowRight, FaChartBar, FaCode } from "react-icons/fa";
+import { 
+  FaGithub, 
+  FaLinkedin, 
+  FaTwitter, 
+  FaArrowRight, 
+  FaLaptopCode, 
+  FaChartLine, 
+  FaHandshake,
+  FaCalendarAlt
+} from "react-icons/fa";
 import Lottie from "lottie-react";
 
 import helloAnimation from "../assets/hello.json";
 
 const IntroCard = () => {
+  // State to track mouse position for the spotlight effect
+  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+
+  const handleMouseMove = (e) => {
+    const { left, top } = e.currentTarget.getBoundingClientRect();
+    setMousePosition({
+      x: e.clientX - left,
+      y: e.clientY - top,
+    });
+  };
+
+  // Animation variants for the right-side cards
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: { staggerChildren: 0.15, delayChildren: 0.4 }
+    }
+  };
+
+  const cardVariants = {
+    hidden: { y: 20, opacity: 0 },
+    show: { y: 0, opacity: 1, transition: { duration: 0.5, ease: "easeOut" } }
+  };
+
   return (
     <motion.div
       initial={{ y: 40, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ duration: 0.8, ease: "easeOut" }}
-      className="w-full max-w-5xl p-8 sm:p-10 lg:p-12 rounded-3xl bg-[#09090b]/80 shadow-[0_0_50px_rgba(145,94,255,0.1)] text-white backdrop-blur-xl border border-white/10 flex flex-col md:flex-row gap-10 items-center relative overflow-hidden"
+      onMouseMove={handleMouseMove}
+      className="w-full max-w-6xl p-8 sm:p-10 lg:p-12 rounded-3xl bg-[#09090b]/80 shadow-[0_0_50px_rgba(145,94,255,0.1)] text-white backdrop-blur-xl border border-white/10 flex flex-col md:flex-row gap-10 lg:gap-16 items-center relative overflow-hidden group"
     >
-      {/* Subtle background glow inside the card */}
-      <div className="absolute -top-24 -left-24 w-64 h-64 bg-[#915EFF] rounded-full mix-blend-multiply filter blur-[100px] opacity-20 pointer-events-none" />
-      <div className="absolute -bottom-24 -right-24 w-64 h-64 bg-[#00C6FF] rounded-full mix-blend-multiply filter blur-[100px] opacity-10 pointer-events-none" />
+      {/* Dynamic Mouse Spotlight */}
+      <div 
+        className="absolute inset-0 z-0 transition-opacity duration-300 opacity-0 group-hover:opacity-100 pointer-events-none"
+        style={{
+          background: `radial-gradient(600px circle at ${mousePosition.x}px ${mousePosition.y}px, rgba(145,94,255,0.06), transparent 40%)`
+        }}
+      />
+
+      {/* Subtle static background glows */}
+      <div className="absolute -top-32 -left-32 w-80 h-80 bg-[#915EFF] rounded-full mix-blend-multiply filter blur-[120px] opacity-20 pointer-events-none" />
+      <div className="absolute -bottom-32 -right-32 w-80 h-80 bg-[#00C6FF] rounded-full mix-blend-multiply filter blur-[120px] opacity-10 pointer-events-none" />
 
       {/* Left Column: Text & CTA */}
       <div className="flex-1 relative z-10">
+        
+        {/* Availability Badge */}
+        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-green-500/10 border border-green-500/20 text-green-400 text-xs font-semibold tracking-wide uppercase mb-6">
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+          </span>
+          Open to Clients & Roles
+        </div>
+
         <div className="flex items-center gap-3 mb-2">
           <div className="w-12 h-12 flex-shrink-0">
             <Lottie animationData={helloAnimation} loop={true} />
@@ -25,74 +79,129 @@ const IntroCard = () => {
           <p className="text-gray-400 font-medium tracking-widest uppercase text-sm">Welcome to my workspace</p>
         </div>
         
-        <h1 className="text-5xl sm:text-6xl font-black text-white mb-4 tracking-tight leading-[1.1]">
+        <h1 className="text-5xl sm:text-6xl lg:text-7xl font-black text-white mb-4 tracking-tight leading-[1.1]">
           Hi, I'm <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#915EFF] to-[#00C6FF]">Francis.</span>
         </h1>
         
         <h2 className="text-xl sm:text-2xl font-bold text-gray-300 mb-6 flex flex-wrap items-center gap-3">
-          <span className="flex items-center gap-2"><FaChartBar className="text-[#00C6FF]"/> Data Analytics</span> 
+          <span className="flex items-center gap-2">Software Engineer</span> 
           <span className="text-gray-600 hidden sm:inline">|</span> 
-          <span className="flex items-center gap-2"><FaCode className="text-[#915EFF]"/> Web Developer</span>
+          <span className="flex items-center gap-2">Business Intelligence</span>
         </h2>
         
+        {/* The Pitch */}
         <p className="text-gray-400 text-lg max-w-xl leading-relaxed mb-8">
-          I build custom, scalable web applications and data-driven tools that help businesses optimize decisions and accelerate growth.
+          Getting a website is just the beginning. I act as your technical growth partner, combining high-performance web development with strategic consulting. I build complete digital ecosystems—equipping you with built-in SEO and custom analytic dashboards so you can track your metrics, understand your audience, and scale your business with confidence.
         </p>
 
+        {/* Trust Metrics */}
+        <div className="flex items-center gap-6 sm:gap-10 mb-8 border-y border-white/5 py-5">
+          <div>
+            <h4 className="text-2xl font-black text-white mb-1">4+</h4>
+            <p className="text-[10px] sm:text-xs text-gray-500 uppercase tracking-wider font-semibold">Years Exp.</p>
+          </div>
+          <div className="w-px h-8 bg-white/10"></div>
+          <div>
+            <h4 className="text-2xl font-black text-white mb-1">20+</h4>
+            <p className="text-[10px] sm:text-xs text-gray-500 uppercase tracking-wider font-semibold">Projects Shipped</p>
+          </div>
+          <div className="w-px h-8 bg-white/10"></div>
+          <div>
+            <h4 className="text-2xl font-black text-white mb-1">100%</h4>
+            <p className="text-[10px] sm:text-xs text-gray-500 uppercase tracking-wider font-semibold">Client Success</p>
+          </div>
+        </div>
+
         {/* Action Buttons */}
-        <div className="flex flex-wrap gap-4 mb-8">
+        <div className="flex flex-wrap gap-4 mb-10">
           <a 
             href="#work" 
             className="flex items-center gap-2 bg-[#915EFF] hover:bg-[#7a4be0] text-white px-7 py-3.5 rounded-full font-bold transition-all duration-300 shadow-[0_0_20px_rgba(145,94,255,0.3)] hover:shadow-[0_0_30px_rgba(145,94,255,0.5)] active:scale-95"
           >
-            View Projects <FaArrowRight className="text-sm" />
+            See My Solutions <FaArrowRight className="text-sm" />
           </a>
           <a 
-            href="mailto:francis@dataclubcenter.com" 
+            href="https://calendly.com/your-link/15min" 
+            target="_blank" 
+            rel="noopener noreferrer"
             className="flex items-center gap-2 bg-white/5 hover:bg-white/10 text-white px-7 py-3.5 rounded-full font-bold transition-all duration-300 border border-white/10 active:scale-95"
           >
-            <FaEnvelope className="text-gray-300" /> Contact Me
+            <FaCalendarAlt className="text-gray-300" /> Book a Discovery Call
           </a>
         </div>
 
         {/* Social Links */}
         <div className="flex items-center gap-6">
-          <a href="https://github.com/" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-white transition-colors duration-300 hover:scale-110 transform">
+          <a href="https://github.com/" target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-white transition-colors duration-300 hover:scale-110 transform">
             <FaGithub size={26} />
           </a>
-          <a href="https://linkedin.com/in/" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-[#0077b5] transition-colors duration-300 hover:scale-110 transform">
+          <a href="https://linkedin.com/in/" target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-[#0077b5] transition-colors duration-300 hover:scale-110 transform">
             <FaLinkedin size={26} />
           </a>
-          <a href="https://twitter.com/" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-[#1DA1F2] transition-colors duration-300 hover:scale-110 transform">
+          <a href="https://twitter.com/" target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-[#1DA1F2] transition-colors duration-300 hover:scale-110 transform">
             <FaTwitter size={26} />
           </a>
         </div>
       </div>
 
-      {/* Right Column: Talent Highlights */}
-      <div className="hidden lg:flex flex-col gap-5 w-full max-w-[320px] relative z-10">
+      {/* Right Column: 3-Pillar Business Highlights */}
+      <motion.div 
+        variants={containerVariants}
+        initial="hidden"
+        animate="show"
+        className="hidden lg:flex flex-col gap-4 w-full max-w-[340px] relative z-10"
+      >
+        {/* Pillar 1: Web Ecosystems */}
         <motion.div 
-          whileHover={{ y: -5 }}
-          className="bg-white/[0.03] p-6 rounded-2xl border border-white/10 hover:border-[#00C6FF]/50 transition-all duration-300 group"
+          variants={cardVariants}
+          whileHover={{ x: -5 }}
+          className="bg-white/[0.02] p-5 rounded-2xl border border-white/5 hover:border-[#915EFF]/40 transition-all duration-300 group hover:bg-white/[0.04]"
         >
-          <div className="w-10 h-10 rounded-lg bg-[#00C6FF]/10 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-            <FaChartBar className="text-[#00C6FF] text-xl" />
+          <div className="flex items-center gap-4 mb-2">
+            <div className="w-10 h-10 rounded-lg bg-[#915EFF]/10 flex items-center justify-center group-hover:scale-110 transition-transform">
+              <FaLaptopCode className="text-[#915EFF] text-lg" />
+            </div>
+            <h3 className="text-white font-bold text-md">Digital Foundations</h3>
           </div>
-          <h3 className="text-white font-bold text-lg mb-2">Data Intelligence</h3>
-          <p className="text-gray-400 text-sm leading-relaxed">Transforming complex datasets into clear, actionable business insights.</p>
+          <p className="text-gray-400 text-sm leading-relaxed pl-14">
+            Custom, high-converting web applications designed to streamline your operations and capture leads.
+          </p>
         </motion.div>
 
+        {/* Pillar 2: Tracking & Dashboards */}
         <motion.div 
-          whileHover={{ y: -5 }}
-          className="bg-white/[0.03] p-6 rounded-2xl border border-white/10 hover:border-[#915EFF]/50 transition-all duration-300 group"
+          variants={cardVariants}
+          whileHover={{ x: -5 }}
+          className="bg-white/[0.02] p-5 rounded-2xl border border-white/5 hover:border-[#00C6FF]/40 transition-all duration-300 group hover:bg-white/[0.04]"
         >
-          <div className="w-10 h-10 rounded-lg bg-[#915EFF]/10 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-            <FaCode className="text-[#915EFF] text-xl" />
+          <div className="flex items-center gap-4 mb-2">
+            <div className="w-10 h-10 rounded-lg bg-[#00C6FF]/10 flex items-center justify-center group-hover:scale-110 transition-transform">
+              <FaChartLine className="text-[#00C6FF] text-lg" />
+            </div>
+            <h3 className="text-white font-bold text-md">Analytic Dashboards</h3>
           </div>
-          <h3 className="text-white font-bold text-lg mb-2">Scalable Systems</h3>
-          <p className="text-gray-400 text-sm leading-relaxed">Architecting robust, high-performance web platforms from the ground up.</p>
+          <p className="text-gray-400 text-sm leading-relaxed pl-14">
+            Real-time business intelligence panels. Track your web traffic, revenue, and core KPIs at a glance.
+          </p>
         </motion.div>
-      </div>
+
+        {/* Pillar 3: Consulting & SEO */}
+        <motion.div 
+          variants={cardVariants}
+          whileHover={{ x: -5 }}
+          className="bg-white/[0.02] p-5 rounded-2xl border border-white/5 hover:border-green-400/40 transition-all duration-300 group hover:bg-white/[0.04]"
+        >
+          <div className="flex items-center gap-4 mb-2">
+            <div className="w-10 h-10 rounded-lg bg-green-400/10 flex items-center justify-center group-hover:scale-110 transition-transform">
+              <FaHandshake className="text-green-400 text-lg" />
+            </div>
+            <h3 className="text-white font-bold text-md">Strategic Consulting</h3>
+          </div>
+          <p className="text-gray-400 text-sm leading-relaxed pl-14">
+            Ongoing SEO optimizations and data consulting to help you interpret the numbers and drive growth.
+          </p>
+        </motion.div>
+      </motion.div>
 
     </motion.div>
   );
