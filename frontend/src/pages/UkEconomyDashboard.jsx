@@ -101,7 +101,7 @@ const UkEconomyDashboard = () => {
 
     const fetchDashboardData = async () => {
       try {
-        const response = await api.get('/api/economy/dashboard/'); // Match your views.py endpoint URL
+        const response = await api.get('/api/economy/kpis/'); // Match your views.py endpoint URL
         if (response.status === 202 || response.data.status === 'loading') {
           if (isMounted) timeoutId = setTimeout(fetchDashboardData, 3000);
           return;
