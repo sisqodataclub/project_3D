@@ -112,23 +112,7 @@ const IntroCard = () => {
           </div>
         </div>
 
-        {/* Action Buttons */}
-        <div className="flex flex-wrap gap-4 mb-10">
-          <a 
-            href="#work" 
-            className="flex items-center gap-2 bg-[#915EFF] hover:bg-[#7a4be0] text-white px-7 py-3.5 rounded-full font-bold transition-all duration-300 shadow-[0_0_20px_rgba(145,94,255,0.3)] hover:shadow-[0_0_30px_rgba(145,94,255,0.5)] active:scale-95"
-          >
-            See My Solutions <FaArrowRight className="text-sm" />
-          </a>
-          <a 
-            href="https://calendly.com/your-link/15min" 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="flex items-center gap-2 bg-white/5 hover:bg-white/10 text-white px-7 py-3.5 rounded-full font-bold transition-all duration-300 border border-white/10 active:scale-95"
-          >
-            <FaCalendarAlt className="text-gray-300" /> Book a Discovery Call
-          </a>
-        </div>
+        
 
         {/* Social Links */}
         <div className="flex items-center gap-6">

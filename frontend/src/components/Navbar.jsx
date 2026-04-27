@@ -67,10 +67,10 @@ const Navbar = () => {
           </div>
           <div className="flex flex-col">
             <h1 className="font-serif font-bold text-lg text-slate-100 tracking-tight leading-none group-hover:text-indigo-300 transition-colors">
-              The Ledger
+              Francis Codes
             </h1>
             <span className="text-[9px] uppercase tracking-widest text-slate-500 font-bold mt-1">
-              Economic Intelligence
+              Business Intelligence
             </span>
           </div>
         </Link>
