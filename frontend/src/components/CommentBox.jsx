@@ -12,7 +12,12 @@ export default function CommentBox({ blogId }) {
   // fetch
   useEffect(() => {
     api.get(`/api/blogs/${blogId}/comments/`)
-       .then(res => setComments(res.data))
+       .then(res => {
+           // 🌟 THE FIX: If Django paginates the response, grab the 'results' array.
+           // Otherwise, just use the raw data. This stops the $.map crash.
+           const commentData = res.data.results ? res.data.results : res.data;
+           setComments(commentData);
+       })
        .catch(console.error);
   }, [blogId]);
 
@@ -20,7 +25,10 @@ export default function CommentBox({ blogId }) {
     e.preventDefault();
     if (!text.trim()) return;
     api.post(`/api/blogs/${blogId}/comments/`, { text })
-       .then(res => setComments(prev => [res.data, ...prev]))
+       .then(res => {
+           // Ensure the new comment gets added correctly whether paginated or not
+           setComments(prev => [res.data, ...(Array.isArray(prev) ? prev : [])]);
+       })
        .finally(() => setText(""));
   };
 
@@ -28,7 +36,7 @@ export default function CommentBox({ blogId }) {
     <section className="mt-20 max-w-3xl mx-auto bg-indigo-800/70 p-8 rounded-3xl shadow-lg">
       <h2 className="text-3xl font-bold mb-6 text-center">Comments</h2>
 
-      {/* form – **no name field** */}
+      {/* form – **no name field** */}
       <form onSubmit={submit} className="flex flex-col gap-4 mb-8">
         <textarea
           rows={4}
