@@ -62,15 +62,25 @@ export default function AdminDashboard() {
   useEffect(() => {
     api
       .get("/api/notes/")
-      .then((res) => setNotes(res.data))
-      .catch(() => alert("Error"));
+      .then((res) => {
+        // FIXED: Handle DRF Pagination (Extract array from .results)
+        if (Array.isArray(res.data)) {
+          setNotes(res.data);
+        } else if (res.data && Array.isArray(res.data.results)) {
+          setNotes(res.data.results);
+        } else {
+          setNotes([]); // Fallback
+        }
+      })
+      .catch(() => alert("Error fetching notes"));
   }, []);
 
   const create = (e) => {
     e.preventDefault();
     api.post("/api/notes/", { title, content }).then((res) => {
       if (res.status === 201) {
-        setNotes((p) => [res.data, ...p]);
+        // FIXED: Safely spread previous state as an array
+        setNotes((p) => [res.data, ...(Array.isArray(p) ? p : [])]);
         setTitle("");
         setContent("");
       }
@@ -97,7 +107,7 @@ export default function AdminDashboard() {
 
   return (
     <div className="relative flex min-h-screen bg-[#0b0e14] text-slate-100 overflow-hidden font-sans">
-      
+
       {/* Subtle Background Animation */}
       <div className="absolute inset-0 z-0 opacity-20 pointer-events-none">
         <BoxesBackground />
@@ -147,7 +157,7 @@ export default function AdminDashboard() {
 
         {/* Main Content Area */}
         <div className="flex-1 flex flex-col min-w-0">
-          
+
           {/* Mobile Header */}
           <header className="lg:hidden flex items-center justify-between px-6 py-4 bg-[#0b0e14]/80 backdrop-blur-md border-b border-slate-800 sticky top-0 z-40">
             <div className="font-bold text-lg text-white">Dashboard</div>
@@ -163,11 +173,11 @@ export default function AdminDashboard() {
 
           {/* Main Scrollable Section */}
           <main className="flex-1 overflow-y-auto p-6 sm:p-10 lg:p-12 xl:px-20 scroll-smooth" id="overview">
-            
+
             <div className="max-w-6xl mx-auto">
-              
+
               {/* Header Greeting */}
-              <motion.div 
+              <motion.div
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
                 className="mb-10"
@@ -179,7 +189,7 @@ export default function AdminDashboard() {
               </motion.div>
 
               {/* Profile Card Area */}
-              <motion.div 
+              <motion.div
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 className="mb-12"
@@ -199,10 +209,10 @@ export default function AdminDashboard() {
                 viewport={{ once: true }}
                 className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-16"
               >
-                <MetricCard 
-                  title="Total Enquiries" 
-                  value={notes.length} 
-                  icon={<IconMailbox className="w-6 h-6 text-indigo-400" />} 
+                <MetricCard
+                  title="Total Enquiries"
+                  value={Array.isArray(notes) ? notes.length : 0} // FIXED
+                  icon={<IconMailbox className="w-6 h-6 text-indigo-400" />}
                 />
                 <MetricCard
                   title="Activity Status"
@@ -227,7 +237,7 @@ export default function AdminDashboard() {
               >
                 <SectionHeading text="Previous Enquiries" />
 
-                {notes.length === 0 ? (
+                {!Array.isArray(notes) || notes.length === 0 ? ( // FIXED
                   <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-10 flex flex-col items-center justify-center text-center">
                     <div className="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center mb-4">
                       <IconMailbox className="w-8 h-8 text-slate-500" />
@@ -247,7 +257,8 @@ export default function AdminDashboard() {
                       </thead>
                       <tbody className="divide-y divide-slate-800/50">
                         <AnimatePresence>
-                          {notes.map((n) => (
+                          {/* FIXED: Defensive inline mapping */}
+                          {(Array.isArray(notes) ? notes : []).map((n) => (
                             <motion.tr
                               key={n.id}
                               initial={{ opacity: 0 }}
@@ -293,7 +304,7 @@ export default function AdminDashboard() {
                 <div className="relative z-10">
                   <SectionHeading text="Customer Support" />
                   <p className="text-slate-400 mb-8 text-sm">Need help with your account or a service? Send us a secure message below.</p>
-                  
+
                   <form onSubmit={create} className="grid gap-6 md:grid-cols-2">
                     <Input
                       label="Subject"
@@ -331,7 +342,7 @@ export default function AdminDashboard() {
 // ────────── Reusable UI Components ──────────
 
 const MetricCard = ({ title, value, icon }) => (
-  <motion.div 
+  <motion.div
     variants={itemVariants}
     whileHover={{ y: -5 }}
     className="bg-slate-900/40 border border-slate-700/50 backdrop-blur-lg rounded-2xl p-6 shadow-xl flex flex-col relative overflow-hidden group"
