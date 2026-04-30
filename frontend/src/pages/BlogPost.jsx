@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Helmet } from "react-helmet-async";
+import ReactMarkdown from "react-markdown"; // 🌟 ADDED IMPORT
 import api from "../api";
 import CommentBox from "../components/CommentBox";
 
@@ -56,7 +57,7 @@ export default function BlogPost() {
     <div className="min-h-screen bg-[#0b0e14] text-slate-100 px-4 sm:px-6 lg:px-32 py-16 max-w-5xl mx-auto selection:bg-indigo-500/30">
       
       <Helmet>
-        <title>{title} | The Economic Ledger</title>
+        <title>{title} | Economic News</title>
         <meta name="description" content={blocks[0]?.text?.substring(0, 150) || "Read the latest market report."} />
         {image && <meta property="og:image" content={image} />}
       </Helmet>
@@ -103,40 +104,52 @@ export default function BlogPost() {
         >
           <img src={image} alt={title} className="w-full h-auto max-h-[500px] object-cover" />
           <div className="px-4 py-2 bg-slate-900/50 border-t border-slate-800 text-[10px] text-slate-500 uppercase tracking-widest text-right">
-            File Photo / Economic Ledger
+            File Photo / Francis Codes
           </div>
         </motion.div>
       )}
 
       <article className="max-w-3xl mx-auto">
-        {blocks.map((blk, i) => {
-          const isQuote = blk.text?.trim().startsWith('"');
-          return (
-            <motion.section key={blk.id || `fallback-${i}`}
-              className="mb-10"
-              variants={fadeUp} initial="hidden" whileInView="show"
-              custom={i} viewport={{ once: true, amount: 0.1 }}>
+        {blocks.map((blk, i) => (
+          <motion.section key={blk.id || `fallback-${i}`}
+            className="mb-10"
+            variants={fadeUp} initial="hidden" whileInView="show"
+            custom={i} viewport={{ once: true, amount: 0.1 }}>
 
-              {blk.image && (
-                <div className="my-8 rounded-lg overflow-hidden border border-slate-800">
-                  <img src={blk.image} alt={`figure-${i}`} className="w-full h-auto object-cover" />
-                </div>
-              )}
+            {blk.image && (
+              <div className="my-8 rounded-lg overflow-hidden border border-slate-800">
+                <img src={blk.image} alt={`figure-${i}`} className="w-full h-auto object-cover" />
+              </div>
+            )}
 
-              {isQuote ? (
-                <blockquote className="border-l-4 border-indigo-500 pl-6 sm:pl-8 my-8 py-2">
-                  <p className="font-serif italic text-xl md:text-2xl text-slate-300 leading-relaxed">
-                    {blk.text}
-                  </p>
-                </blockquote>
-              ) : (
-                <p className="font-serif text-lg md:text-xl text-slate-300 leading-relaxed font-light mb-6">
-                  {blk.text}
-                </p>
-              )}
-            </motion.section>
-          );
-        })}
+            {/* 🌟 REPLACED RAW TEXT WITH REACT-MARKDOWN */}
+            <ReactMarkdown
+              components={{
+                // Standard Paragraphs
+                p: ({node, ...props}) => <p className="font-serif text-lg md:text-xl text-slate-300 leading-relaxed font-light mb-6" {...props} />,
+                
+                // Blockquotes (Use > in Django)
+                blockquote: ({node, ...props}) => <blockquote className="border-l-4 border-indigo-500 pl-6 sm:pl-8 my-8 py-2 font-serif italic text-xl md:text-2xl text-slate-300 leading-relaxed bg-slate-900/30 rounded-r-lg" {...props} />,
+                
+                // Bulleted Lists (Use - or * in Django)
+                ul: ({node, ...props}) => <ul className="list-disc pl-6 mb-6 text-slate-300 font-serif text-lg md:text-xl space-y-2 marker:text-indigo-500" {...props} />,
+                
+                // Numbered Lists (Use 1. 2. 3. in Django)
+                ol: ({node, ...props}) => <ol className="list-decimal pl-6 mb-6 text-slate-300 font-serif text-lg md:text-xl space-y-2 marker:text-indigo-500" {...props} />,
+                
+                // Bold text (Use **text** in Django)
+                strong: ({node, ...props}) => <strong className="font-bold text-white" {...props} />,
+                
+                // Headers (Use ## in Django)
+                h2: ({node, ...props}) => <h2 className="text-2xl md:text-3xl font-bold tracking-tight text-white mt-12 mb-6" {...props} />,
+                h3: ({node, ...props}) => <h3 className="text-xl md:text-2xl font-bold tracking-tight text-white mt-8 mb-4" {...props} />,
+              }}
+            >
+              {blk.text}
+            </ReactMarkdown>
+
+          </motion.section>
+        ))}
       </article>
 
       <div className="max-w-3xl mx-auto mt-20 pt-10 border-t border-slate-800">
@@ -146,7 +159,7 @@ export default function BlogPost() {
 
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }}
         className="mt-24 pt-8 border-t border-slate-800 text-xs font-mono text-slate-600 text-center uppercase tracking-widest">
-        © {new Date().getFullYear()} The Economic Ledger. Data sourced via Automated Pipeline.
+        © {new Date().getFullYear()} Francis Codes. Data sourced via Automated Pipeline.
       </motion.div>
     </div>
   );
