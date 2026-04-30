@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { 
-  FaGithub, 
-  FaLinkedin, 
-  FaTwitter, 
-  FaArrowRight, 
-  FaLaptopCode, 
-  FaChartLine, 
+import {
+  FaGithub,
+  FaLinkedin,
+  FaTwitter,
+  FaArrowRight,
+  FaLaptopCode,
+  FaChartLine,
   FaHandshake,
   FaCalendarAlt
 } from "react-icons/fa";
@@ -49,7 +49,7 @@ const IntroCard = () => {
       className="w-full max-w-6xl p-8 sm:p-10 lg:p-12 rounded-3xl bg-[#09090b]/80 shadow-[0_0_50px_rgba(145,94,255,0.1)] text-white backdrop-blur-xl border border-white/10 flex flex-col md:flex-row gap-10 lg:gap-16 items-center relative overflow-hidden group"
     >
       {/* Dynamic Mouse Spotlight */}
-      <div 
+      <div
         className="absolute inset-0 z-0 transition-opacity duration-300 opacity-0 group-hover:opacity-100 pointer-events-none"
         style={{
           background: `radial-gradient(600px circle at ${mousePosition.x}px ${mousePosition.y}px, rgba(145,94,255,0.06), transparent 40%)`
@@ -62,7 +62,7 @@ const IntroCard = () => {
 
       {/* Left Column: Text & CTA */}
       <div className="flex-1 relative z-10">
-        
+
         {/* Availability Badge */}
         <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-green-500/10 border border-green-500/20 text-green-400 text-xs font-semibold tracking-wide uppercase mb-6">
           <span className="relative flex h-2 w-2">
@@ -78,17 +78,17 @@ const IntroCard = () => {
           </div>
           <p className="text-gray-400 font-medium tracking-widest uppercase text-sm">Welcome to my workspace</p>
         </div>
-        
+
         <h1 className="text-5xl sm:text-6xl lg:text-7xl font-black text-white mb-4 tracking-tight leading-[1.1]">
           Hi, I'm <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#915EFF] to-[#00C6FF]">Francis.</span>
         </h1>
-        
+
         <h2 className="text-xl sm:text-2xl font-bold text-gray-300 mb-6 flex flex-wrap items-center gap-3">
-          <span className="flex items-center gap-2">Software Engineer</span> 
-          <span className="text-gray-600 hidden sm:inline">|</span> 
+          <span className="flex items-center gap-2">Software Engineer</span>
+          <span className="text-gray-600 hidden sm:inline">|</span>
           <span className="flex items-center gap-2">Business Intelligence</span>
         </h2>
-        
+
         {/* The Pitch */}
         <p className="text-gray-400 text-lg max-w-xl leading-relaxed mb-8">
           Getting a website is just the beginning. I act as your technical growth partner, combining high-performance web development with strategic consulting. I build complete digital ecosystems—equipping you with built-in SEO and custom analytic dashboards so you can track your metrics, understand your audience, and scale your business with confidence.
@@ -112,8 +112,6 @@ const IntroCard = () => {
           </div>
         </div>
 
-        
-
         {/* Social Links */}
         <div className="flex items-center gap-6">
           <a href="https://github.com/" target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-white transition-colors duration-300 hover:scale-110 transform">
@@ -129,14 +127,15 @@ const IntroCard = () => {
       </div>
 
       {/* Right Column: 3-Pillar Business Highlights */}
-      <motion.div 
+      <motion.div
         variants={containerVariants}
         initial="hidden"
         animate="show"
-        className="hidden lg:flex flex-col gap-4 w-full max-w-[340px] relative z-10"
+        /* 🌟 FIXED: Removed 'hidden lg:flex' and made max-width responsive so it stacks nicely on mobile 🌟 */
+        className="flex flex-col gap-4 w-full lg:max-w-[340px] relative z-10"
       >
         {/* Pillar 1: Web Ecosystems */}
-        <motion.div 
+        <motion.div
           variants={cardVariants}
           whileHover={{ x: -5 }}
           className="bg-white/[0.02] p-5 rounded-2xl border border-white/5 hover:border-[#915EFF]/40 transition-all duration-300 group hover:bg-white/[0.04]"
@@ -153,7 +152,7 @@ const IntroCard = () => {
         </motion.div>
 
         {/* Pillar 2: Tracking & Dashboards */}
-        <motion.div 
+        <motion.div
           variants={cardVariants}
           whileHover={{ x: -5 }}
           className="bg-white/[0.02] p-5 rounded-2xl border border-white/5 hover:border-[#00C6FF]/40 transition-all duration-300 group hover:bg-white/[0.04]"
@@ -170,7 +169,7 @@ const IntroCard = () => {
         </motion.div>
 
         {/* Pillar 3: Consulting & SEO */}
-        <motion.div 
+        <motion.div
           variants={cardVariants}
           whileHover={{ x: -5 }}
           className="bg-white/[0.02] p-5 rounded-2xl border border-white/5 hover:border-green-400/40 transition-all duration-300 group hover:bg-white/[0.04]"
