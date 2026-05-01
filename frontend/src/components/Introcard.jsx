@@ -82,9 +82,9 @@ const IntroCard = () => {
         </h1>
 
         <h2 className="text-xl sm:text-2xl font-bold text-gray-300 mb-6 flex flex-wrap items-center gap-3">
-          <span className="flex items-center gap-2">Technical Growth Partner</span>
+          <span className="flex items-center gap-2">Software Engineer</span>
           <span className="text-gray-600 hidden sm:inline">|</span>
-          <span className="flex items-center gap-2">Business Ecosystems</span>
+          <span className="flex items-center gap-2">Business Analyst</span>
         </h2>
 
         {/* The Updated Pitch */}
