@@ -4,10 +4,8 @@ import {
   FaGithub,
   FaLinkedin,
   FaTwitter,
-  FaArrowRight,
   FaLaptopCode,
   FaChartLine,
-  FaHandshake,
   FaCalendarAlt
 } from "react-icons/fa";
 import Lottie from "lottie-react";
@@ -84,14 +82,14 @@ const IntroCard = () => {
         </h1>
 
         <h2 className="text-xl sm:text-2xl font-bold text-gray-300 mb-6 flex flex-wrap items-center gap-3">
-          <span className="flex items-center gap-2">Software Engineer</span>
+          <span className="flex items-center gap-2">Technical Growth Partner</span>
           <span className="text-gray-600 hidden sm:inline">|</span>
-          <span className="flex items-center gap-2">Business Intelligence</span>
+          <span className="flex items-center gap-2">Business Ecosystems</span>
         </h2>
 
-        {/* The Pitch */}
+        {/* The Updated Pitch */}
         <p className="text-gray-400 text-lg max-w-xl leading-relaxed mb-8">
-          Getting a website is just the beginning. I act as your technical growth partner, combining high-performance web development with strategic consulting. I build complete digital ecosystems—equipping you with built-in SEO and custom analytic dashboards so you can track your metrics, understand your audience, and scale your business with confidence.
+          Most agencies build you a website, hand over the keys, and wish you luck. But a website alone doesn't bring in customers. When we work together, you don't just get a website—you get an entire engine designed to run and grow your business.
         </p>
 
         {/* Trust Metrics */}
@@ -131,10 +129,9 @@ const IntroCard = () => {
         variants={containerVariants}
         initial="hidden"
         animate="show"
-        /* 🌟 FIXED: Removed 'hidden lg:flex' and made max-width responsive so it stacks nicely on mobile 🌟 */
         className="flex flex-col gap-4 w-full lg:max-w-[340px] relative z-10"
       >
-        {/* Pillar 1: Web Ecosystems */}
+        {/* Pillar 1: Trust */}
         <motion.div
           variants={cardVariants}
           whileHover={{ x: -5 }}
@@ -144,14 +141,31 @@ const IntroCard = () => {
             <div className="w-10 h-10 rounded-lg bg-[#915EFF]/10 flex items-center justify-center group-hover:scale-110 transition-transform">
               <FaLaptopCode className="text-[#915EFF] text-lg" />
             </div>
-            <h3 className="text-white font-bold text-md">Digital Foundations</h3>
+            <h3 className="text-white font-bold text-md">A Website That Builds Trust</h3>
           </div>
           <p className="text-gray-400 text-sm leading-relaxed pl-14">
-            Custom, high-converting web applications designed to streamline your operations and capture leads.
+            A fast, professional site that makes you the obvious premium choice in your local market.
           </p>
         </motion.div>
 
-        {/* Pillar 2: Tracking & Dashboards */}
+        {/* Pillar 2: Bookings */}
+        <motion.div
+          variants={cardVariants}
+          whileHover={{ x: -5 }}
+          className="bg-white/[0.02] p-5 rounded-2xl border border-white/5 hover:border-green-400/40 transition-all duration-300 group hover:bg-white/[0.04]"
+        >
+          <div className="flex items-center gap-4 mb-2">
+            <div className="w-10 h-10 rounded-lg bg-green-400/10 flex items-center justify-center group-hover:scale-110 transition-transform">
+              <FaCalendarAlt className="text-green-400 text-lg" />
+            </div>
+            <h3 className="text-white font-bold text-md">Frictionless Bookings</h3>
+          </div>
+          <p className="text-gray-400 text-sm leading-relaxed pl-14">
+            Built-in contact forms, booking calendars, or checkout carts so customers can buy from you instantly.
+          </p>
+        </motion.div>
+
+        {/* Pillar 3: Analytics */}
         <motion.div
           variants={cardVariants}
           whileHover={{ x: -5 }}
@@ -161,27 +175,10 @@ const IntroCard = () => {
             <div className="w-10 h-10 rounded-lg bg-[#00C6FF]/10 flex items-center justify-center group-hover:scale-110 transition-transform">
               <FaChartLine className="text-[#00C6FF] text-lg" />
             </div>
-            <h3 className="text-white font-bold text-md">Analytic Dashboards</h3>
+            <h3 className="text-white font-bold text-md">Clear Business Analytics</h3>
           </div>
           <p className="text-gray-400 text-sm leading-relaxed pl-14">
-            Real-time business intelligence panels. Track your web traffic, revenue, and core KPIs at a glance.
-          </p>
-        </motion.div>
-
-        {/* Pillar 3: Consulting & SEO */}
-        <motion.div
-          variants={cardVariants}
-          whileHover={{ x: -5 }}
-          className="bg-white/[0.02] p-5 rounded-2xl border border-white/5 hover:border-green-400/40 transition-all duration-300 group hover:bg-white/[0.04]"
-        >
-          <div className="flex items-center gap-4 mb-2">
-            <div className="w-10 h-10 rounded-lg bg-green-400/10 flex items-center justify-center group-hover:scale-110 transition-transform">
-              <FaHandshake className="text-green-400 text-lg" />
-            </div>
-            <h3 className="text-white font-bold text-md">Strategic Consulting</h3>
-          </div>
-          <p className="text-gray-400 text-sm leading-relaxed pl-14">
-            Ongoing SEO optimizations and data consulting to help you interpret the numbers and drive growth.
+            A simple dashboard. Log in every morning and see exactly how many visited, booked, and your profit margins.
           </p>
         </motion.div>
       </motion.div>
