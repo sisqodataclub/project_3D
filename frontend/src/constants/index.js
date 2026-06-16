@@ -93,24 +93,47 @@ export const navLinks = [
 
 ];
 
+
+
 const services = [
   {
-    title: "Website Developer",
-    icon: web,
+    title: "High-Converting Websites",
+    description: "Lightning-fast, SEO-friendly digital storefronts built to capture traffic and drive real sales while you sleep.",
+    icon: web, // Keep your existing icon
   },
   {
-    title: "Data Analyst/Engineer",
-    icon: mobile,
+    title: "BI & Analytics Dashboards",
+    description: "Custom, easy-to-read data hubs that track your traffic, leads, and profit margins. Giving you a true CEO-level overview.",
+    icon: mobile, 
   },
   {
-    title: "Market Researcher",
-    icon: backend,
+    title: "Automated Payment Systems",
+    description: "Seamless, secure Stripe checkout and booking systems that reduce friction and make getting paid effortless.",
+    icon: backend, 
   },
   {
-    title: "Content Creator",
-    icon: creator,
+    title: "Autopilot Operations & CRM", // 🌟 NEW: The "Pilot Mode" closer
+    description: "Automated lead capture, email follow-ups, and customer management. We handle the admin so you can focus entirely on your craft.",
+    icon: backend, // Update with a suitable icon like a gear or robot
+  },
+  {
+    title: "Market & Competitor Research",
+    description: "Deep data insights to position your brand perfectly, find hidden opportunities, and capture market share faster.",
+    icon: creator, 
+  },
+  {
+    title: "Technical Growth Partnership", // 🌟 TWEAKED: Sounds more like a permanent business system than just "consulting"
+    description: "We don't just build and leave. We guide your digital strategy, acting as your technical team so you can run your business in pilot mode.",
+    icon: creator, 
   },
 ];
+
+
+
+
+
+
+
 
 const technologies = [
   {

@@ -7,7 +7,7 @@ import { services } from "../constants";
 import { SectionWrapper } from "../hoc";
 import { fadeIn, textVariant } from "../utils/motion";
 
-const ServiceCard = ({ index, title, icon }) => (
+const ServiceCard = ({ index, title, description, icon }) => (
   <Tilt className='xs:w-[250px] w-full'>
     <motion.div
       variants={fadeIn("right", "spring", index * 0.5, 0.75)}
@@ -19,7 +19,7 @@ const ServiceCard = ({ index, title, icon }) => (
           scale: 1,
           speed: 450,
         }}
-        className='bg-tertiary rounded-[20px] py-5 px-12 min-h-[280px] flex justify-evenly items-center flex-col'
+        className='bg-tertiary rounded-[20px] py-6 px-8 min-h-[320px] flex justify-start items-center flex-col gap-4'
       >
         <img
           src={icon}
@@ -27,9 +27,14 @@ const ServiceCard = ({ index, title, icon }) => (
           className='w-16 h-16 object-contain'
         />
 
-        <h3 className='text-white text-[20px] font-bold text-center'>
+        <h3 className='text-white text-[18px] font-bold text-center'>
           {title}
         </h3>
+        
+        {/* Value-Driven Description */}
+        <p className='text-secondary text-[14px] text-center leading-[22px]'>
+          {description}
+        </p>
       </div>
     </motion.div>
   </Tilt>
@@ -64,6 +69,7 @@ const About = () => {
         </p>
       </motion.div>
 
+      {/* SERVICES MAPPING */}
       <div className='mt-20 flex flex-wrap gap-10'>
         {services.map((service, index) => (
           <ServiceCard key={service.title} index={index} {...service} />
