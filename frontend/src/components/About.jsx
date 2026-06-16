@@ -23,7 +23,7 @@ const ServiceCard = ({ index, title, icon }) => (
       >
         <img
           src={icon}
-          alt='web-development'
+          alt={title}
           className='w-16 h-16 object-contain'
         />
 
@@ -40,7 +40,7 @@ const About = () => {
     <>
       <motion.div variants={textVariant()}>
         <p className={styles.sectionSubText}>Introduction</p>
-        <h2 className={styles.sectionHeadText}>About.</h2>
+        <h2 className={styles.sectionHeadText}>About Us.</h2>
       </motion.div>
 
       {/* 🌟 UPGRADED BUSINESS & GROWTH COPY */}
@@ -49,18 +49,18 @@ const About = () => {
         className='mt-4 text-secondary text-[17px] max-w-3xl leading-[30px] flex flex-col gap-5'
       >
         <p>
-          The internet is full of pretty websites that don't bring in a single dollar. 
-          For a small business, a website that doesn't generate revenue is a liability.
+          The internet is crowded with "pretty" websites that look great but fail to generate a single pound of revenue. 
+          For a small business fighting in a flooded market, a digital storefront that doesn't actively drive sales isn't an asset—it is a liability.
         </p>
         <p>
-          My job is to make sure your business thrives. I build the digital foundation you need to 
-          survive and scale. Yes, I build beautiful, fast websites—but I also plug them into real 
-          business intelligence. I help you rank higher on Google so customers can actually find you.
+          That is where a true technical growth partner changes the game. We don't just write code; we engineer the digital 
+          foundation your business needs to survive and scale. By bridging the gap between high-performance web design and 
+          real business intelligence, the focus shifts from simply "getting online" to taking total control of your growth.
         </p>
         <p>
-          Then, I build custom, easy-to-use dashboards so you can track your daily traffic, leads, 
-          and sales at a glance. I give you the insights you need to stop guessing and start making 
-          confident decisions that keep your business growing.
+          This means building lightning-fast, trustworthy websites and plugging them directly into custom, easy-to-read 
+          analytics dashboards. From ranking higher on search engines to tracking daily traffic, leads, and profit margins 
+          at a glance, you are armed with the exact insights required to stop guessing and start making data-driven decisions.
         </p>
       </motion.div>
 
