@@ -3,9 +3,8 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 
 const HVTContext = createContext();
 
-// HVT API Configuration
-const HVT_BASE_URL = 'https://auth.franciscodes.com/api/v1';
-const HVT_API_KEY = 'your_hvt_project_api_key_here'; // Get from HVT admin dashboard
+// ✅ Use your backend proxy endpoints – API key stays on the server
+const API_BASE = 'https://api.franciscodes.com/cv/api/auth';
 
 export const HVTProvider = ({ children }) => {
   const [user, setUser] = useState(null);
@@ -22,10 +21,9 @@ export const HVTProvider = ({ children }) => {
 
   const fetchUserInfo = async (tok) => {
     try {
-      const res = await fetch(`${HVT_BASE_URL}/auth/runtime/me/`, {
+      const res = await fetch(`${API_BASE}/me/`, {
         headers: {
-          'Authorization': `Bearer ${tok}`,
-          'X-API-Key': HVT_API_KEY,
+          'Authorization': `Bearer ${tok}`
         }
       });
       if (res.ok) {
@@ -42,12 +40,9 @@ export const HVTProvider = ({ children }) => {
   };
 
   const login = async (email, password) => {
-    const res = await fetch(`${HVT_BASE_URL}/auth/runtime/login/`, {
+    const res = await fetch(`${API_BASE}/login/`, {
       method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json', 
-        'X-API-Key': HVT_API_KEY 
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password })
     });
     if (!res.ok) {
@@ -63,12 +58,9 @@ export const HVTProvider = ({ children }) => {
   };
 
   const register = async (email, password1, password2) => {
-    const res = await fetch(`${HVT_BASE_URL}/auth/runtime/register/`, {
+    const res = await fetch(`${API_BASE}/register/`, {
       method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json', 
-        'X-API-Key': HVT_API_KEY 
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password1, password2 })
     });
     if (!res.ok) {
