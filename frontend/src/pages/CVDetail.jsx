@@ -26,6 +26,11 @@ export default function CVDetail() {
       });
   }, [id]);
 
+  const downloadPDF = () => {
+    const url = `${API_BASE}/resumes/${id}/pdf/`;
+    window.open(url, '_blank');
+  };
+
   if (loading)
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#0b0e14] text-slate-100">
@@ -55,13 +60,24 @@ export default function CVDetail() {
   return (
     <div className="min-h-screen bg-[#0b0e14] text-slate-100 py-10 px-4">
       <div className="max-w-4xl mx-auto">
-        {/* Back button */}
-        <Link
-          to="/cv"
-          className="inline-block mb-6 text-blue-400 hover:text-blue-300 transition"
-        >
-          ← Back to CV Manager
-        </Link>
+        {/* Header with back button and download button */}
+        <div className="flex justify-between items-center mb-6">
+          <Link
+            to="/cv"
+            className="text-blue-400 hover:text-blue-300 transition"
+          >
+            ← Back to CV Manager
+          </Link>
+          <button
+            onClick={downloadPDF}
+            className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg font-semibold transition flex items-center gap-2"
+          >
+            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V7l-5-5H6zm8 13a1 1 0 01-1 1H7a1 1 0 01-1-1v-1a1 1 0 011-1h6a1 1 0 011 1v1zm-3-8V3.5L13.5 7H11z" clipRule="evenodd" />
+            </svg>
+            Download PDF
+          </button>
+        </div>
 
         {/* Main card */}
         <div className="bg-gray-900 rounded-2xl shadow-2xl overflow-hidden border border-gray-800">
