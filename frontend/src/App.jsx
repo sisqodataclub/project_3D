@@ -11,8 +11,9 @@ import Blog from "./pages/Blog";
 import Logout from "./components/Logout";
 import BlogPost from "./pages/BlogPost";
 
-// CV Manager
-import CVManager from "./pages/CVManager"; // <-- NEW
+// CV components
+import CVManager from "./pages/CVManager";    // <-- list & create
+import CVDetail from "./pages/CVDetail";      // <-- detail view
 
 import AreaSelectionPage from "./pages/AreaSelectionPage";
 import QuantitySelectionPage from "./pages/QuantitySelectionPage";
@@ -42,14 +43,12 @@ function RegisterAndLogout() {
 function Home() {
   return (
     <div className="relative z-0 bg-primary">
-      {/* Removed the duplicated Navbar from here */}
       <div className="bg-hero-pattern bg-cover bg-no-repeat bg-center">
         <Hero />
       </div>
       <About />
       <Tech />
       <Works />
-
       <Feedbacks />
       <div className="relative z-0">
         <Contact />
@@ -60,7 +59,6 @@ function Home() {
 }
 
 const App = () => {
-  // State for the multi-page form
   const [selectedAreas, setSelectedAreas] = useState([]);
   const [quantities, setQuantities] = useState({});
   const [details, setDetails] = useState({ name: "", email: "", phone: "" });
@@ -68,13 +66,10 @@ const App = () => {
   return (
     <BrowserRouter>
       <AuthProvider>
-        {/* 1. Global Theme Wrapper for the whole platform */}
         <div className="min-h-screen bg-[#0b0e14] text-slate-100 font-sans selection:bg-indigo-500/30 flex flex-col">
 
-          {/* 2. Global Navbar - Renders once, stays on every page */}
           <Navbar />
 
-          {/* 3. Main Content Area */}
           <main className="flex-grow">
             <Routes>
               {/* Public + Home */}
@@ -97,7 +92,6 @@ const App = () => {
               {/* Dashboards */}
               <Route path="/dashboard" element={<PerfumeAnalyticsDashboard />} />
               <Route path="/conversion" element={<ManVanAnalyticsDashboard />} />
-
               <Route path="/uklive" element={<UkEconomyDashboard />} />
 
               {/* Protected Route */}
@@ -107,11 +101,12 @@ const App = () => {
                 </ProtectedRoute>
               } />
 
-              {/* Public Route */}
+              {/* Blog */}
               <Route path="/blog" element={<Blog />} />
 
-              {/* 🆕 CV Manager (Public) */}
+              {/* 🆕 CV Routes */}
               <Route path="/cv" element={<CVManager />} />
+              <Route path="/cv/:id" element={<CVDetail />} />
             </Routes>
           </main>
 

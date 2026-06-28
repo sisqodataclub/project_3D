@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';  // <-- added
 
 const API_BASE = 'https://api.franciscodes.com/cv/api';
 
@@ -19,7 +20,6 @@ export default function CVManager() {
     achievements: '',
   });
 
-  // Fetch all resumes on mount
   useEffect(() => {
     fetch(`${API_BASE}/resumes/`)
       .then(res => {
@@ -27,7 +27,6 @@ export default function CVManager() {
         return res.json();
       })
       .then(data => {
-        // Ensure we always set an array
         setResumes(Array.isArray(data) ? data : []);
         setLoading(false);
       })
@@ -44,7 +43,6 @@ export default function CVManager() {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    // Basic validation
     if (!formData.full_name || !formData.about || !formData.email || !formData.phone) {
       alert('Please fill in all required fields (full name, about, email, phone).');
       return;
@@ -93,18 +91,20 @@ export default function CVManager() {
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
           {resumes.map((r) => (
-            <div key={r.id} className="bg-gray-800 p-4 rounded-lg shadow">
-              <h3 className="text-lg font-bold">{r.full_name}</h3>
-              <p className="text-sm text-gray-300">{r.about}</p>
-              <p className="text-sm text-gray-400">📧 {r.email}</p>
-              <p className="text-sm text-gray-400">📞 {r.phone}</p>
-              {r.skills && (
-                <p className="text-sm text-gray-300 mt-1">
-                  <span className="font-semibold">Skills:</span> {r.skills}
-                </p>
-              )}
-              <p className="text-xs text-gray-500 mt-2">Created: {new Date(r.created_at).toLocaleDateString()}</p>
-            </div>
+            <Link to={`/cv/${r.id}`} key={r.id} className="block transition hover:scale-[1.02]">
+              <div className="bg-gray-800 p-4 rounded-lg shadow cursor-pointer">
+                <h3 className="text-lg font-bold">{r.full_name}</h3>
+                <p className="text-sm text-gray-300">{r.about}</p>
+                <p className="text-sm text-gray-400">📧 {r.email}</p>
+                <p className="text-sm text-gray-400">📞 {r.phone}</p>
+                {r.skills && (
+                  <p className="text-sm text-gray-300 mt-1">
+                    <span className="font-semibold">Skills:</span> {r.skills}
+                  </p>
+                )}
+                <p className="text-xs text-gray-500 mt-2">Created: {new Date(r.created_at).toLocaleDateString()}</p>
+              </div>
+            </Link>
           ))}
         </div>
       )}
