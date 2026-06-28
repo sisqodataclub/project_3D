@@ -15,6 +15,7 @@ import BlogPost from "./pages/BlogPost";
 import CVManager from "./pages/CVManager";
 import CVDetail from "./pages/CVDetail";
 import JobApplicationDetail from "./pages/JobApplicationDetail";
+import CVLayout from "./pages/CVLayout"; // <-- NEW: Layout that provides HVT context
 
 import AreaSelectionPage from "./pages/AreaSelectionPage";
 import QuantitySelectionPage from "./pages/QuantitySelectionPage";
@@ -44,14 +45,12 @@ function RegisterAndLogout() {
 function Home() {
   return (
     <div className="relative z-0 bg-primary">
-      {/* Removed the duplicated Navbar from here */}
       <div className="bg-hero-pattern bg-cover bg-no-repeat bg-center">
         <Hero />
       </div>
       <About />
       <Tech />
       <Works />
-
       <Feedbacks />
       <div className="relative z-0">
         <Contact />
@@ -70,13 +69,10 @@ const App = () => {
   return (
     <BrowserRouter>
       <AuthProvider>
-        {/* 1. Global Theme Wrapper for the whole platform */}
         <div className="min-h-screen bg-[#0b0e14] text-slate-100 font-sans selection:bg-indigo-500/30 flex flex-col">
 
-          {/* 2. Global Navbar - Renders once, stays on every page */}
           <Navbar />
 
-          {/* 3. Main Content Area */}
           <main className="flex-grow">
             <Routes>
               {/* Public + Home */}
@@ -99,23 +95,24 @@ const App = () => {
               {/* Dashboards */}
               <Route path="/dashboard" element={<PerfumeAnalyticsDashboard />} />
               <Route path="/conversion" element={<ManVanAnalyticsDashboard />} />
-
               <Route path="/uklive" element={<UkEconomyDashboard />} />
 
-              {/* Protected Route */}
+              {/* Protected Route (uses existing AuthProvider) */}
               <Route path="/profile" element={
                 <ProtectedRoute>
                   <Profile />
                 </ProtectedRoute>
               } />
 
-              {/* Public Route */}
+              {/* Blog */}
               <Route path="/blog" element={<Blog />} />
 
-              {/* 🆕 CV Routes */}
-              <Route path="/cv" element={<CVManager />} />
-              <Route path="/cv/:id" element={<CVDetail />} />
-              <Route path="/cv/application/:id" element={<JobApplicationDetail />} />
+              {/* 🆕 CV Routes – wrapped with HVT context via CVLayout */}
+              <Route path="/cv" element={<CVLayout />}>
+                <Route index element={<CVManager />} />
+                <Route path=":id" element={<CVDetail />} />
+                <Route path="application/:id" element={<JobApplicationDetail />} />
+              </Route>
             </Routes>
           </main>
 
