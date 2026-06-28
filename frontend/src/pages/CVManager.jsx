@@ -2,9 +2,10 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useCVData } from '../hooks/useCVData';
 import { useHVT } from '../context/HVTContext';
+import AuthModal from '../components/AuthModal';
 
 export default function CVManager() {
-  const { user } = useHVT();
+  const { isAuthenticated, logout, user } = useHVT();
   const {
     resumes,
     applications,
@@ -13,9 +14,9 @@ export default function CVManager() {
     createApplication,
     migrateGuestData,
     hasGuestData,
-    isAuthenticated,
   } = useCVData();
 
+  const [showAuthModal, setShowAuthModal] = useState(false);
   const [showCVForm, setShowCVForm] = useState(false);
   const [showJobForm, setShowJobForm] = useState(false);
 
@@ -103,13 +104,40 @@ export default function CVManager() {
     }
   };
 
+  const handleLogout = () => {
+    logout();
+  };
+
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center bg-[#0b0e14] text-slate-100">Loading...</div>;
   }
 
   return (
     <div className="max-w-6xl mx-auto p-6 bg-[#0b0e14] text-slate-100">
-      <h1 className="text-3xl font-bold mb-6">📄 CV Manager</h1>
+      {/* Header with Auth Controls */}
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold">📄 CV Manager</h1>
+        <div>
+          {!isAuthenticated ? (
+            <button
+              onClick={() => setShowAuthModal(true)}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg font-semibold transition"
+            >
+              Login / Register
+            </button>
+          ) : (
+            <div className="flex items-center gap-3">
+              <span className="text-gray-300 text-sm">Hi, {user?.email || 'User'}</span>
+              <button
+                onClick={handleLogout}
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg font-semibold transition text-sm"
+              >
+                Logout
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
 
       {/* Migration Banner */}
       {isAuthenticated && hasGuestData && (
@@ -131,15 +159,21 @@ export default function CVManager() {
       <div className="mb-8">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-semibold">Your Resumes ({resumes.length})</h2>
-          <button
-            onClick={() => setShowCVForm(!showCVForm)}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg font-semibold transition"
-          >
-            {showCVForm ? 'Cancel' : '+ Add New CV'}
-          </button>
+          {isAuthenticated && (
+            <button
+              onClick={() => setShowCVForm(!showCVForm)}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg font-semibold transition"
+            >
+              {showCVForm ? 'Cancel' : '+ Add New CV'}
+            </button>
+          )}
         </div>
 
-        {showCVForm && (
+        {!isAuthenticated && resumes.length === 0 && (
+          <p className="text-gray-400">Please login or register to create and save your CVs.</p>
+        )}
+
+        {showCVForm && isAuthenticated && (
           <form onSubmit={handleCvSubmit} className="bg-gray-800 p-4 rounded-lg mb-4 space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -254,7 +288,7 @@ export default function CVManager() {
         )}
 
         {resumes.length === 0 ? (
-          <p className="text-gray-400">No resumes yet. Create one above.</p>
+          <p className="text-gray-400">No resumes yet. {isAuthenticated ? 'Create one above.' : 'Login to create one.'}</p>
         ) : (
           <div className="grid gap-4 md:grid-cols-2">
             {resumes.map((r) => (
@@ -276,15 +310,21 @@ export default function CVManager() {
       <div>
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-semibold">Your Job Applications ({applications.length})</h2>
-          <button
-            onClick={() => setShowJobForm(!showJobForm)}
-            className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg font-semibold transition"
-          >
-            {showJobForm ? 'Cancel' : '+ Add Job Application'}
-          </button>
+          {isAuthenticated && (
+            <button
+              onClick={() => setShowJobForm(!showJobForm)}
+              className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg font-semibold transition"
+            >
+              {showJobForm ? 'Cancel' : '+ Add Job Application'}
+            </button>
+          )}
         </div>
 
-        {showJobForm && (
+        {!isAuthenticated && applications.length === 0 && (
+          <p className="text-gray-400">Please login or register to track job applications.</p>
+        )}
+
+        {showJobForm && isAuthenticated && (
           <form onSubmit={handleJobSubmit} className="bg-gray-800 p-4 rounded-lg mb-4 space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -379,7 +419,7 @@ export default function CVManager() {
         )}
 
         {applications.length === 0 ? (
-          <p className="text-gray-400">No applications yet. Create one above.</p>
+          <p className="text-gray-400">No applications yet. {isAuthenticated ? 'Create one above.' : 'Login to track applications.'}</p>
         ) : (
           <div className="grid gap-4 md:grid-cols-2">
             {applications.map((app) => (
@@ -426,6 +466,9 @@ export default function CVManager() {
           </div>
         )}
       </div>
+
+      {/* Auth Modal */}
+      <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
     </div>
   );
 }
