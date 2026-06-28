@@ -11,6 +11,9 @@ import Blog from "./pages/Blog";
 import Logout from "./components/Logout";
 import BlogPost from "./pages/BlogPost";
 
+// CV Manager
+import CVManager from "./pages/CVManager"; // <-- NEW
+
 import AreaSelectionPage from "./pages/AreaSelectionPage";
 import QuantitySelectionPage from "./pages/QuantitySelectionPage";
 import PersonalDetailsPage from "./pages/PersonalDetailsPage";
@@ -95,7 +98,7 @@ const App = () => {
               <Route path="/dashboard" element={<PerfumeAnalyticsDashboard />} />
               <Route path="/conversion" element={<ManVanAnalyticsDashboard />} />
 
-	      <Route path="/uklive" element={<UkEconomyDashboard />} />
+              <Route path="/uklive" element={<UkEconomyDashboard />} />
 
               {/* Protected Route */}
               <Route path="/profile" element={
@@ -106,6 +109,9 @@ const App = () => {
 
               {/* Public Route */}
               <Route path="/blog" element={<Blog />} />
+
+              {/* 🆕 CV Manager (Public) */}
+              <Route path="/cv" element={<CVManager />} />
             </Routes>
           </main>
 
