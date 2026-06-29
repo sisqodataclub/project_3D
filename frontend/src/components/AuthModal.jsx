@@ -4,7 +4,7 @@ import { useHVT } from '../context/HVTContext';
 export default function AuthModal({ isOpen, onClose }) {
   const [activeTab, setActiveTab] = useState('login'); // 'login' or 'register'
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [password1, setPassword1] = useState(''); // renamed from 'password' to match backend
   const [password2, setPassword2] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -18,21 +18,22 @@ export default function AuthModal({ isOpen, onClose }) {
 
     try {
       if (activeTab === 'login') {
-        await login(email, password);
+        // login expects email and password (we send password1 as the password)
+        await login(email, password1);
         onClose(); // Close modal on success
       } else {
-        if (password !== password2) {
+        if (password1 !== password2) {
           setError('Passwords do not match');
           setLoading(false);
           return;
         }
-        await register(email, password, password2);
-        // After registration, switch to login tab (or auto-login)
+        // register expects email, password1, password2
+        await register(email, password1, password2);
+        // After registration, switch to login tab
         setActiveTab('login');
-        setPassword('');
+        setPassword1('');
         setPassword2('');
         setError('Registration successful! Please login.');
-        // Optionally, you could auto-login here, but it's better to let user login manually.
       }
     } catch (err) {
       setError(err.message);
@@ -83,8 +84,8 @@ export default function AuthModal({ isOpen, onClose }) {
             <label className="block text-gray-300 text-sm font-medium mb-1">Password</label>
             <input
               type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              value={password1}               // now uses password1
+              onChange={(e) => setPassword1(e.target.value)}
               className="w-full p-2 bg-gray-800 rounded border border-gray-600 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
               required
             />
