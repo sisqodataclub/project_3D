@@ -269,6 +269,27 @@ const projects = [
     source_code_link: "https://www.franciscodes.com/uklive",
   },
 
+
+  {
+   "name": "CV Manager App",
+   "category": "Applications",
+   "description": "A full-featured CV and job application management platform built from scratch with a custom authentication system (Django JWT). Users can create, edit, and reorder multiple CVs with nested sections for education, experience, projects, skills, languages, and achievements. Includes PDF export with multiple templates, real-time section and item reordering, and a job application tracker with status management (saved, applied, interviewing, offered, rejected). All data is securely scoped per user with row-level ownership enforced on the backend.",
+   "tags": [
+     { "name": "React", "color": "blue-text-gradient" },
+     { "name": "Django", "color": "red-text-gradient" },
+     { "name": "Django REST Framework", "color": "green-text-gradient" },
+     { "name": "Custom JWT Auth", "color": "orange-text-gradient" },
+     { "name": "Tailwind CSS", "color": "pink-text-gradient" },
+     { "name": "PostgreSQL", "color": "purple-text-gradient" },
+     { "name": "Docker", "color": "teal-text-gradient" }
+   ],
+   "image": "https://api.microlink.io/?url=https://www.franciscodes.com/cv&screenshot=true&meta=false&embed=screenshot.url",
+   "source_code_link": "https://www.franciscodes.com/cv"
+ },
+
+
+
+
   {
     name: "Customer Conversion Funnel",
     category: "Dashboards",
