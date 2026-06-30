@@ -14,7 +14,8 @@ const ProjectCard = ({ index, name, description, tags, image, source_code_link }
   <motion.div variants={fadeIn("up", "spring", index * 0.5, 0.75)}>
     <Tilt
       options={{ max: 45, scale: 1, speed: 450 }}
-      className="bg-tertiary p-5 rounded-2xl sm:w-[360px] w-full"
+      className="bg-tertiary p-5 rounded-2xl sm:w-[360px] w-full cursor-pointer"
+      onClick={() => window.open(source_code_link, "_blank")}
     >
       <div className="relative w-full h-[230px]">
         <img
@@ -24,7 +25,10 @@ const ProjectCard = ({ index, name, description, tags, image, source_code_link }
         />
         <div className="absolute inset-0 flex justify-end m-3 card-img_hover">
           <div
-            onClick={() => window.open(source_code_link, "_blank")}
+            onClick={(e) => {
+              e.stopPropagation();
+              window.open(source_code_link, "_blank");
+            }}
             className="black-gradient w-10 h-10 rounded-full flex justify-center items-center cursor-pointer"
           >
             <img src={github} alt="source code" className="w-1/2 h-1/2 object-contain" />
@@ -54,16 +58,15 @@ const Works = () => {
   // Get unique categories, excluding "Blogs"
   const categories = useMemo(() => {
     const allCategories = projects.map((project) => project.category);
-    // Filter out "Blogs" and any undefined/null
     const filtered = allCategories.filter(cat => cat && cat !== "Blogs");
     return ["All", ...new Set(filtered)];
   }, []);
 
-  // Filter projects: exclude "Blogs" when "All" is selected, otherwise match category
+  // Filter projects: exclude "Blogs" when "All" is selected
   const filteredProjects = useMemo(() => {
     return projects.filter(project => {
       if (activeCategory === "All") {
-        return project.category !== "Blogs"; // Hide Blogs when "All" is selected
+        return project.category !== "Blogs";
       }
       return project.category === activeCategory;
     });

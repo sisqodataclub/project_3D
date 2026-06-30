@@ -19,7 +19,8 @@ const ProjectCard = ({ index, name, description, tags, image, source_code_link }
   >
     <Tilt
       options={{ max: 45, scale: 1, speed: 450 }}
-      className="bg-tertiary p-5 rounded-2xl w-full h-full flex flex-col border border-white/10 hover:border-white/20 transition-colors"
+      className="bg-tertiary p-5 rounded-2xl w-full h-full flex flex-col border border-white/10 hover:border-white/20 transition-colors cursor-pointer"
+      onClick={() => window.open(source_code_link, "_blank")}
     >
       <div className="relative w-full h-[230px] rounded-2xl overflow-hidden group">
         <img
@@ -27,12 +28,14 @@ const ProjectCard = ({ index, name, description, tags, image, source_code_link }
           alt={name}
           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 ease-in-out"
         />
-        {/* Subtle gradient overlay for better contrast */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-50" />
-        
+
         <div className="absolute inset-0 flex justify-end m-3">
           <div
-            onClick={() => window.open(source_code_link, "_blank")}
+            onClick={(e) => {
+              e.stopPropagation();
+              window.open(source_code_link, "_blank");
+            }}
             className="black-gradient w-10 h-10 rounded-full flex justify-center items-center cursor-pointer shadow-lg hover:scale-110 hover:shadow-[#915EFF]/50 transition-all duration-300"
           >
             <img src={github} alt="source code" className="w-1/2 h-1/2 object-contain" />
@@ -42,7 +45,6 @@ const ProjectCard = ({ index, name, description, tags, image, source_code_link }
 
       <div className="mt-5 flex-grow">
         <h3 className="text-white font-bold text-[24px]">{name}</h3>
-        {/* line-clamp prevents text from breaking the card height uniformity */}
         <p className="mt-2 text-secondary text-[14px] line-clamp-3 leading-relaxed">
           {description}
         </p>
@@ -65,15 +67,22 @@ const ProjectCard = ({ index, name, description, tags, image, source_code_link }
 const ProjectsPage = () => {
   const [activeCategory, setActiveCategory] = useState("All");
 
+  // Get unique categories, excluding "Blogs"
   const categories = useMemo(() => {
     const allCategories = projects.map((project) => project.category);
-    return ["All", ...new Set(allCategories.filter(Boolean))];
+    const filtered = allCategories.filter(cat => cat && cat !== "Blogs");
+    return ["All", ...new Set(filtered)];
   }, []);
 
-  const filteredProjects =
-    activeCategory === "All"
-      ? projects
-      : projects.filter((project) => project.category === activeCategory);
+  // Filter projects: exclude "Blogs" when "All" is selected
+  const filteredProjects = useMemo(() => {
+    return projects.filter(project => {
+      if (activeCategory === "All") {
+        return project.category !== "Blogs";
+      }
+      return project.category === activeCategory;
+    });
+  }, [activeCategory, projects]);
 
   return (
     <div className="bg-primary min-h-screen py-20 px-4">
