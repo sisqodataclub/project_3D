@@ -4,6 +4,9 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useHVT } from '../context/HVTContext';
 import { useCVData } from '../hooks/useCVData';
 
+// ✅ ADD THIS LINE – missing API_BASE
+const API_BASE = 'https://api.franciscodes.com/cv/api';
+
 const DEFAULT_SECTIONS = ['educations', 'experiences', 'projects', 'skills', 'languages', 'achievements'];
 const SECTION_LABELS = {
   educations: 'Education',
@@ -36,12 +39,16 @@ export default function CVDetail() {
         return;
       }
       try {
-        const res = await fetch(`${API_BASE}/resumes/${id}/`, {
+        console.log('🔍 Fetching resume ID:', id);
+        const url = `${API_BASE}/resumes/${id}/`;
+        console.log('📡 Fetch URL:', url);
+        const res = await fetch(url, {
           headers: { Authorization: `Bearer ${accessToken}` },
         });
+        console.log('📡 Response status:', res.status);
         if (res.ok) {
           const data = await res.json();
-          // Ensure section_order is always an array
+          console.log('✅ Resume data:', data);
           if (!data.section_order || data.section_order.length === 0) {
             data.section_order = [...DEFAULT_SECTIONS];
           }
@@ -50,9 +57,12 @@ export default function CVDetail() {
         } else if (res.status === 404) {
           setError('Resume not found.');
         } else {
+          const errorText = await res.text();
+          console.error('❌ Error response:', errorText);
           setError('Failed to load resume.');
         }
       } catch (e) {
+        console.error('❌ Fetch error:', e);
         setError('Network error.');
       } finally {
         setLoading(false);
@@ -147,7 +157,6 @@ export default function CVDetail() {
           });
       };
 
-      // Ensure section_order is included
       const payload = {
         full_name: editData.full_name,
         about: editData.about,
