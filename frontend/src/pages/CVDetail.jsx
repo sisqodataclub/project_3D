@@ -9,7 +9,7 @@ export default function CVDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { accessToken, isAuthenticated, loading: authLoading } = useHVT();
-  const { updateResume } = useCVData();
+  const { updateResume, deleteResume } = useCVData();
 
   const [resume, setResume] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -34,7 +34,7 @@ export default function CVDetail() {
         if (res.ok) {
           const data = await res.json();
           setResume(data);
-          setEditData(data); // initialise edit data
+          setEditData(data);
         } else if (res.status === 404) {
           setError('Resume not found.');
         } else {
@@ -51,7 +51,7 @@ export default function CVDetail() {
 
   // ---- Edit Mode Handlers ----
   const enableEditing = () => {
-    setEditData(JSON.parse(JSON.stringify(resume))); // deep copy
+    setEditData(JSON.parse(JSON.stringify(resume)));
     setIsEditing(true);
   };
 
@@ -60,27 +60,24 @@ export default function CVDetail() {
     setEditData(null);
   };
 
-  // Update a field in editData
   const handleFieldChange = (field, value) => {
     setEditData({ ...editData, [field]: value });
   };
 
-  // Update a nested item field
   const handleNestedChange = (section, index, field, value) => {
     const updated = [...editData[section]];
     updated[index][field] = value;
     setEditData({ ...editData, [section]: updated });
   };
 
-  // Add a new empty item to a section
   const addItem = (section, emptyItem) => {
+    const newItem = { ...emptyItem, order: editData[section].length };
     setEditData({
       ...editData,
-      [section]: [...editData[section], emptyItem],
+      [section]: [...editData[section], newItem],
     });
   };
 
-  // Remove an item from a section
   const removeItem = (section, index) => {
     if (editData[section].length <= 1) return;
     const updated = [...editData[section]];
@@ -88,25 +85,23 @@ export default function CVDetail() {
     setEditData({ ...editData, [section]: updated });
   };
 
-  // Reorder items (swap order values)
   const moveItem = (section, index, direction) => {
     const items = [...editData[section]];
     const targetIndex = direction === 'up' ? index - 1 : index + 1;
     if (targetIndex < 0 || targetIndex >= items.length) return;
-    // Swap the order values
+    // Swap order values
     const temp = items[index].order;
     items[index].order = items[targetIndex].order;
     items[targetIndex].order = temp;
-    // Also swap positions in the array (for UI)
+    // Swap array positions
     [items[index], items[targetIndex]] = [items[targetIndex], items[index]];
     setEditData({ ...editData, [section]: items });
   };
 
-  // Save changes
+  // ---- Save changes ----
   const handleSave = async () => {
     setSaveLoading(true);
     try {
-      // Filter out empty items (same as CVManager)
       const filterValid = (items, requiredFields) => {
         return items
           .filter(item => {
@@ -151,7 +146,18 @@ export default function CVDetail() {
     }
   };
 
-  // ---- PDF Download (unchanged) ----
+  // ---- Delete Resume ----
+  const handleDelete = async () => {
+    if (!window.confirm('Are you sure you want to delete this resume? This action cannot be undone.')) return;
+    try {
+      await deleteResume(id);
+      navigate('/cv');
+    } catch (err) {
+      alert('Error deleting resume: ' + err.message);
+    }
+  };
+
+  // ---- PDF Download ----
   const downloadPDF = async () => {
     if (!isAuthenticated || !accessToken) {
       alert('Please log in to download PDF.');
@@ -197,7 +203,7 @@ export default function CVDetail() {
     return <div className="min-h-screen flex items-center justify-center bg-[#0b0e14] text-slate-100"><p>No resume data found.</p></div>;
   }
 
-  // ---- Render display mode ----
+  // ---- Display Mode ----
   if (!isEditing) {
     return (
       <div className="min-h-screen bg-[#0b0e14] text-slate-100 py-10 px-4">
@@ -213,10 +219,14 @@ export default function CVDetail() {
                 <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V7l-5-5H6zm8 13a1 1 0 01-1 1H7a1 1 0 01-1-1v-1a1 1 0 011-1h6a1 1 0 011 1v1zm-3-8V3.5L13.5 7H11z" clipRule="evenodd" /></svg>
                 Download PDF
               </button>
+              <button onClick={handleDelete} className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg font-semibold transition flex items-center gap-2">
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" /></svg>
+                Delete
+              </button>
             </div>
           </div>
 
-          {/* Display view (unchanged from previous) */}
+          {/* Display view (same as before) */}
           <div className="bg-gray-900 rounded-2xl shadow-2xl overflow-hidden border border-gray-800">
             <div className="bg-gradient-to-r from-blue-800 to-purple-800 px-8 py-10">
               <h1 className="text-4xl font-bold text-white">{resume.full_name}</h1>
@@ -227,84 +237,41 @@ export default function CVDetail() {
                 {resume.age && <span>🎂 {resume.age} years</span>}
               </div>
             </div>
-
             <div className="p-8 space-y-8">
-              {resume.educations?.length > 0 && (
-                <Section title="Education">
-                  <ul className="list-disc list-inside space-y-1 text-gray-300">
-                    {resume.educations.map((edu) => (
-                      <li key={edu.id}>
-                        {edu.institution} {edu.degree && `– ${edu.degree}`} {edu.field_of_study && `(${edu.field_of_study})`}
-                        {edu.start_date && ` (${edu.start_date}${edu.end_date ? ` - ${edu.end_date}` : ''})`}
-                        {edu.description && <p className="ml-6 text-sm text-gray-400">{edu.description}</p>}
-                      </li>
-                    ))}
-                  </ul>
-                </Section>
-              )}
-
-              {resume.experiences?.length > 0 && (
-                <Section title="Experience">
-                  <ul className="list-disc list-inside space-y-1 text-gray-300">
-                    {resume.experiences.map((exp) => (
-                      <li key={exp.id}>
-                        {exp.position} at {exp.company} {exp.location && `(${exp.location})`}
-                        {exp.start_date && ` (${exp.start_date}${exp.end_date ? ` - ${exp.end_date}` : ''})`}
-                        {exp.description && <p className="ml-6 text-sm text-gray-400">{exp.description}</p>}
-                      </li>
-                    ))}
-                  </ul>
-                </Section>
-              )}
-
-              {resume.projects?.length > 0 && (
-                <Section title="Projects">
-                  <ul className="list-disc list-inside space-y-1 text-gray-300">
-                    {resume.projects.map((proj) => (
-                      <li key={proj.id}>
-                        {proj.name} {proj.url && <a href={proj.url} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">🔗</a>}
-                        {proj.start_date && ` (${proj.start_date}${proj.end_date ? ` - ${proj.end_date}` : ''})`}
-                        {proj.description && <p className="ml-6 text-sm text-gray-400">{proj.description}</p>}
-                      </li>
-                    ))}
-                  </ul>
-                </Section>
-              )}
-
-              {resume.skills?.length > 0 && (
-                <Section title="Skills">
-                  <div className="flex flex-wrap gap-2">
-                    {resume.skills.map((skill) => (
-                      <span key={skill.id} className="px-3 py-1 bg-blue-900/50 text-blue-300 rounded-full text-sm">
-                        {skill.name} {skill.proficiency && `(${skill.proficiency})`}
-                      </span>
-                    ))}
-                  </div>
-                </Section>
-              )}
-
-              {resume.languages?.length > 0 && (
-                <Section title="Languages">
-                  <div className="flex flex-wrap gap-2">
-                    {resume.languages.map((lang) => (
-                      <span key={lang.id} className="px-3 py-1 bg-purple-900/50 text-purple-300 rounded-full text-sm">
-                        {lang.name} {lang.proficiency && `(${lang.proficiency})`}
-                      </span>
-                    ))}
-                  </div>
-                </Section>
-              )}
-
-              {resume.achievements?.length > 0 && (
-                <Section title="Achievements">
-                  <ul className="list-disc list-inside space-y-1 text-gray-300">
-                    {resume.achievements.map((ach) => (
-                      <li key={ach.id}>{ach.description}</li>
-                    ))}
-                  </ul>
-                </Section>
-              )}
-
+              {renderSection('Education', resume.educations, (edu) => (
+                <li key={edu.id}>
+                  {edu.institution} {edu.degree && `– ${edu.degree}`} {edu.field_of_study && `(${edu.field_of_study})`}
+                  {edu.start_date && ` (${edu.start_date}${edu.end_date ? ` - ${edu.end_date}` : ''})`}
+                  {edu.description && <p className="ml-6 text-sm text-gray-400">{edu.description}</p>}
+                </li>
+              ))}
+              {renderSection('Experience', resume.experiences, (exp) => (
+                <li key={exp.id}>
+                  {exp.position} at {exp.company} {exp.location && `(${exp.location})`}
+                  {exp.start_date && ` (${exp.start_date}${exp.end_date ? ` - ${exp.end_date}` : ''})`}
+                  {exp.description && <p className="ml-6 text-sm text-gray-400">{exp.description}</p>}
+                </li>
+              ))}
+              {renderSection('Projects', resume.projects, (proj) => (
+                <li key={proj.id}>
+                  {proj.name} {proj.url && <a href={proj.url} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">🔗</a>}
+                  {proj.start_date && ` (${proj.start_date}${proj.end_date ? ` - ${proj.end_date}` : ''})`}
+                  {proj.description && <p className="ml-6 text-sm text-gray-400">{proj.description}</p>}
+                </li>
+              ))}
+              {renderSection('Skills', resume.skills, (skill) => (
+                <span key={skill.id} className="px-3 py-1 bg-blue-900/50 text-blue-300 rounded-full text-sm">
+                  {skill.name} {skill.proficiency && `(${skill.proficiency})`}
+                </span>
+              ), true)}
+              {renderSection('Languages', resume.languages, (lang) => (
+                <span key={lang.id} className="px-3 py-1 bg-purple-900/50 text-purple-300 rounded-full text-sm">
+                  {lang.name} {lang.proficiency && `(${lang.proficiency})`}
+                </span>
+              ), true)}
+              {renderSection('Achievements', resume.achievements, (ach) => (
+                <li key={ach.id}>{ach.description}</li>
+              ))}
               <div className="text-xs text-gray-500 pt-4 border-t border-gray-700">
                 Created: {new Date(resume.created_at).toLocaleDateString()} · Updated: {new Date(resume.updated_at).toLocaleDateString()}
               </div>
@@ -315,7 +282,7 @@ export default function CVDetail() {
     );
   }
 
-  // ---- Edit mode ----
+  // ---- Edit Mode ----
   return (
     <div className="min-h-screen bg-[#0b0e14] text-slate-100 py-10 px-4">
       <div className="max-w-4xl mx-auto">
@@ -351,7 +318,6 @@ export default function CVDetail() {
               languages: { name: '', proficiency: '', order: items.length },
               achievements: { description: '', order: items.length },
             }[section];
-
             const requiredFields = {
               educations: ['institution'],
               experiences: ['company'],
@@ -409,11 +375,17 @@ export default function CVDetail() {
   );
 }
 
-function Section({ title, children }) {
+// Helper: render a section in display mode
+function renderSection(title, items, renderItem, isFlex = false) {
+  if (!items || items.length === 0) return null;
   return (
     <div>
       <h2 className="text-2xl font-semibold text-white border-b border-gray-700 pb-2 mb-4">{title}</h2>
-      {children}
+      {isFlex ? (
+        <div className="flex flex-wrap gap-2">{items.map(renderItem)}</div>
+      ) : (
+        <ul className="list-disc list-inside space-y-1 text-gray-300">{items.map(renderItem)}</ul>
+      )}
     </div>
   );
 }
