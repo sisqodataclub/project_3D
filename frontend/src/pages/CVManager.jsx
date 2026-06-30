@@ -61,17 +61,40 @@ export default function CVManager() {
       return;
     }
     try {
-      // Filter out empty items
+      // 🔧 Build the payload – filter empty items and convert empty strings to null
       const payload = {
-        ...cvForm,
+        full_name: cvForm.full_name,
+        about: cvForm.about,
+        email: cvForm.email,
+        phone: cvForm.phone,
         age: cvForm.age || null,
-        educations: cvForm.educations.filter(e => e.institution || e.degree || e.description),
-        experiences: cvForm.experiences.filter(e => e.company || e.position || e.description),
-        projects: cvForm.projects.filter(p => p.name || p.description),
+        educations: cvForm.educations
+          .filter(e => e.institution || e.degree || e.description)
+          .map(e => ({
+            ...e,
+            start_date: e.start_date || null,
+            end_date: e.end_date || null,
+          })),
+        experiences: cvForm.experiences
+          .filter(e => e.company || e.position || e.description)
+          .map(e => ({
+            ...e,
+            start_date: e.start_date || null,
+            end_date: e.end_date || null,
+          })),
+        projects: cvForm.projects
+          .filter(p => p.name || p.description)
+          .map(p => ({
+            ...p,
+            url: p.url || null,
+            start_date: p.start_date || null,
+            end_date: p.end_date || null,
+          })),
         skills: cvForm.skills.filter(s => s.name),
         languages: cvForm.languages.filter(l => l.name),
         achievements: cvForm.achievements.filter(a => a.description),
       };
+
       await createResume(payload);
       setShowCVForm(false);
       // Reset form
@@ -221,9 +244,22 @@ export default function CVManager() {
                   {items.map((item, idx) => (
                     <div key={idx} className="flex gap-2 items-start mb-2">
                       <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-2">
-                        {Object.keys(item).map((key) => (
-                          <input key={key} placeholder={key.replace(/_/g, ' ')} value={item[key] || ''} onChange={(e) => updateArrayField(section, idx, key, e.target.value)} className="p-1 bg-gray-700 rounded border border-gray-600 text-sm" />
-                        ))}
+                        {Object.keys(item).map((key) => {
+                          // Use appropriate input types for date and url
+                          let inputType = 'text';
+                          if (key.includes('date')) inputType = 'date';
+                          if (key === 'url') inputType = 'url';
+                          return (
+                            <input
+                              key={key}
+                              type={inputType}
+                              placeholder={key.replace(/_/g, ' ')}
+                              value={item[key] || ''}
+                              onChange={(e) => updateArrayField(section, idx, key, e.target.value)}
+                              className="p-1 bg-gray-700 rounded border border-gray-600 text-sm"
+                            />
+                          );
+                        })}
                       </div>
                       <button type="button" onClick={() => removeArrayItem(section, idx)} className="text-red-400 hover:text-red-300 text-sm">✕</button>
                     </div>
