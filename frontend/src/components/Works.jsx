@@ -2,7 +2,7 @@
 import React, { useState, useMemo } from "react";
 import Tilt from "react-parallax-tilt";
 import { motion } from "framer-motion";
-import { Link } from "react-router-dom"; // <-- NEW
+import { Link } from "react-router-dom";
 
 import { styles } from "../styles";
 import { github } from "../assets";
@@ -51,15 +51,23 @@ const ProjectCard = ({ index, name, description, tags, image, source_code_link }
 const Works = () => {
   const [activeCategory, setActiveCategory] = useState("All");
 
+  // Get unique categories, excluding "Blogs"
   const categories = useMemo(() => {
     const allCategories = projects.map((project) => project.category);
-    return ["All", ...new Set(allCategories.filter(Boolean))];
+    // Filter out "Blogs" and any undefined/null
+    const filtered = allCategories.filter(cat => cat && cat !== "Blogs");
+    return ["All", ...new Set(filtered)];
   }, []);
 
-  const filteredProjects =
-    activeCategory === "All"
-      ? projects
-      : projects.filter((project) => project.category === activeCategory);
+  // Filter projects: exclude "Blogs" when "All" is selected, otherwise match category
+  const filteredProjects = useMemo(() => {
+    return projects.filter(project => {
+      if (activeCategory === "All") {
+        return project.category !== "Blogs"; // Hide Blogs when "All" is selected
+      }
+      return project.category === activeCategory;
+    });
+  }, [activeCategory, projects]);
 
   return (
     <>
@@ -99,7 +107,7 @@ const Works = () => {
         )}
       </div>
 
-      {/* 🆕 View All Projects Button */}
+      {/* View All Projects Button */}
       <div className="mt-12 flex justify-center">
         <Link
           to="/projects"
