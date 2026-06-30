@@ -5,11 +5,11 @@ import { useHVT } from '../context/HVTContext';
 import AuthModal from '../components/AuthModal';
 
 export default function CVManager() {
-  const { isAuthenticated, logout, user } = useHVT();
+  const { isAuthenticated, logout, user, loading: authLoading } = useHVT();
   const {
     resumes,
     applications,
-    loading,
+    loading: dataLoading,
     createResume,
     createApplication,
     migrateGuestData,
@@ -108,8 +108,13 @@ export default function CVManager() {
     logout();
   };
 
-  if (loading) {
-    return <div className="min-h-screen flex items-center justify-center bg-[#0b0e14] text-slate-100">Loading...</div>;
+  // Show loading while auth is being restored
+  if (authLoading || dataLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#0b0e14] text-slate-100">
+        Loading...
+      </div>
+    );
   }
 
   return (
