@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useCVData } from '../hooks/useCVData';
 import { useHVT } from '../context/HVTContext';
@@ -19,6 +19,7 @@ export default function CVManager() {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showCVForm, setShowCVForm] = useState(false);
   const [showJobForm, setShowJobForm] = useState(false);
+  const [error, setError] = useState(null);
 
   // ---- CV Form state ----
   const [cvFormData, setCvFormData] = useState({
@@ -108,11 +109,22 @@ export default function CVManager() {
     logout();
   };
 
-  // Show loading while auth is being restored
-  if (authLoading || dataLoading) {
+  // If auth is loading, show spinner
+  if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#0b0e14] text-slate-100">
-        Loading...
+        <div className="text-center">
+          <div className="text-xl">Loading...</div>
+        </div>
+      </div>
+    );
+  }
+
+  // If there's a general error, show it
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#0b0e14] text-red-400">
+        <div>Error: {error}</div>
       </div>
     );
   }
@@ -292,7 +304,9 @@ export default function CVManager() {
           </form>
         )}
 
-        {resumes.length === 0 ? (
+        {dataLoading ? (
+          <div className="text-gray-400">Loading resumes...</div>
+        ) : resumes.length === 0 ? (
           <p className="text-gray-400">No resumes yet. {isAuthenticated ? 'Create one above.' : 'Login to create one.'}</p>
         ) : (
           <div className="grid gap-4 md:grid-cols-2">
@@ -423,7 +437,9 @@ export default function CVManager() {
           </form>
         )}
 
-        {applications.length === 0 ? (
+        {dataLoading ? (
+          <div className="text-gray-400">Loading applications...</div>
+        ) : applications.length === 0 ? (
           <p className="text-gray-400">No applications yet. {isAuthenticated ? 'Create one above.' : 'Login to track applications.'}</p>
         ) : (
           <div className="grid gap-4 md:grid-cols-2">
