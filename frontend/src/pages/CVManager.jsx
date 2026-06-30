@@ -19,6 +19,7 @@ export default function CVManager() {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showCVForm, setShowCVForm] = useState(false);
   const [showJobForm, setShowJobForm] = useState(false);
+  const [formWarning, setFormWarning] = useState('');
 
   // ---- Resume Form State (nested) ----
   const [cvForm, setCvForm] = useState({
@@ -40,10 +41,13 @@ export default function CVManager() {
     const updated = [...cvForm[section]];
     updated[index][field] = value;
     setCvForm({ ...cvForm, [section]: updated });
+    // Clear warning when user types
+    if (formWarning) setFormWarning('');
   };
 
   const addArrayItem = (section, emptyItem) => {
     setCvForm({ ...cvForm, [section]: [...cvForm[section], emptyItem] });
+    if (formWarning) setFormWarning('');
   };
 
   const removeArrayItem = (section, index) => {
@@ -53,50 +57,74 @@ export default function CVManager() {
     setCvForm({ ...cvForm, [section]: updated });
   };
 
-  // ---- Submit ----
+  // ---- Submit with smart validation ----
   const handleCvSubmit = async (e) => {
     e.preventDefault();
+    setFormWarning('');
+
     if (!cvForm.full_name || !cvForm.about || !cvForm.email || !cvForm.phone) {
-      alert('Please fill in all required fields.');
+      alert('Please fill in all required fields (Name, About, Email, Phone).');
       return;
     }
+
+    // Helper: filter out items that are completely empty or missing required fields
+    const filterValid = (items, requiredFields, sectionName) => {
+      let skipped = 0;
+      const valid = items
+        .filter(item => {
+          // If the item has any non-empty field, check required fields
+          const hasAnyData = Object.values(item).some(v => v && v.trim() !== '');
+          if (!hasAnyData) return false; // completely empty → skip
+
+          // Check required fields
+          const missing = requiredFields.filter(f => !item[f] || item[f].trim() === '');
+          if (missing.length > 0) {
+            skipped++;
+            return false; // skip if missing required fields
+          }
+          return true;
+        })
+        .map(item => {
+          // Convert empty dates/url to null for the backend
+          const cleaned = { ...item };
+          Object.keys(cleaned).forEach(key => {
+            if (key.includes('date') || key === 'url') {
+              cleaned[key] = cleaned[key] || null;
+            }
+          });
+          return cleaned;
+        });
+
+      if (skipped > 0) {
+        setFormWarning(prev => `${prev} ${skipped} item(s) in ${sectionName} were skipped because required fields were missing.`);
+      }
+      return valid;
+    };
+
     try {
-      // 🔧 Build the payload – filter empty items and convert empty strings to null
       const payload = {
         full_name: cvForm.full_name,
         about: cvForm.about,
         email: cvForm.email,
         phone: cvForm.phone,
         age: cvForm.age || null,
-        educations: cvForm.educations
-          .filter(e => e.institution || e.degree || e.description)
-          .map(e => ({
-            ...e,
-            start_date: e.start_date || null,
-            end_date: e.end_date || null,
-          })),
-        experiences: cvForm.experiences
-          .filter(e => e.company || e.position || e.description)
-          .map(e => ({
-            ...e,
-            start_date: e.start_date || null,
-            end_date: e.end_date || null,
-          })),
-        projects: cvForm.projects
-          .filter(p => p.name || p.description)
-          .map(p => ({
-            ...p,
-            url: p.url || null,
-            start_date: p.start_date || null,
-            end_date: p.end_date || null,
-          })),
-        skills: cvForm.skills.filter(s => s.name),
-        languages: cvForm.languages.filter(l => l.name),
-        achievements: cvForm.achievements.filter(a => a.description),
+        educations: filterValid(cvForm.educations, ['institution'], 'Education'),
+        experiences: filterValid(cvForm.experiences, ['company'], 'Experience'),
+        projects: filterValid(cvForm.projects, ['name'], 'Project'),
+        skills: filterValid(cvForm.skills, ['name'], 'Skill'),
+        languages: filterValid(cvForm.languages, ['name'], 'Language'),
+        achievements: filterValid(cvForm.achievements, ['description'], 'Achievement'),
       };
 
       await createResume(payload);
+
+      // If we have warnings but still succeeded, show them briefly
+      if (formWarning) {
+        alert(formWarning);
+      }
+
       setShowCVForm(false);
+      setFormWarning('');
       // Reset form
       setCvForm({
         full_name: '',
@@ -213,6 +241,12 @@ export default function CVManager() {
 
         {showCVForm && isAuthenticated && (
           <form onSubmit={handleCvSubmit} className="bg-gray-800 p-4 rounded-lg mb-4 space-y-4">
+            {formWarning && (
+              <div className="bg-yellow-800/50 border border-yellow-600 p-2 rounded text-sm text-yellow-200">
+                ⚠️ {formWarning}
+              </div>
+            )}
+
             {/* Basic Info */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div><label className="block text-sm font-medium mb-1">Full Name *</label><input type="text" name="full_name" value={cvForm.full_name} onChange={(e) => setCvForm({...cvForm, full_name: e.target.value})} className="w-full p-2 bg-gray-700 rounded border border-gray-600" required /></div>
@@ -235,29 +269,42 @@ export default function CVManager() {
                 achievements: { description: '' },
               }[section];
 
+              const requiredFields = {
+                educations: ['institution'],
+                experiences: ['company'],
+                projects: ['name'],
+                skills: ['name'],
+                languages: ['name'],
+                achievements: ['description'],
+              }[section];
+
               return (
                 <div key={section} className="border border-gray-700 p-3 rounded">
                   <div className="flex justify-between items-center mb-2">
-                    <h3 className="text-lg font-medium">{label}</h3>
+                    <h3 className="text-lg font-medium">
+                      {label}
+                      <span className="text-xs text-gray-400 ml-2">(required: {requiredFields.join(', ')})</span>
+                    </h3>
                     <button type="button" onClick={() => addArrayItem(section, emptyItem)} className="text-sm text-blue-400 hover:text-blue-300">+ Add {label.slice(0, -1)}</button>
                   </div>
                   {items.map((item, idx) => (
                     <div key={idx} className="flex gap-2 items-start mb-2">
                       <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-2">
                         {Object.keys(item).map((key) => {
-                          // Use appropriate input types for date and url
+                          const isRequired = requiredFields.includes(key);
                           let inputType = 'text';
                           if (key.includes('date')) inputType = 'date';
                           if (key === 'url') inputType = 'url';
                           return (
-                            <input
-                              key={key}
-                              type={inputType}
-                              placeholder={key.replace(/_/g, ' ')}
-                              value={item[key] || ''}
-                              onChange={(e) => updateArrayField(section, idx, key, e.target.value)}
-                              className="p-1 bg-gray-700 rounded border border-gray-600 text-sm"
-                            />
+                            <div key={key} className="relative">
+                              <input
+                                type={inputType}
+                                placeholder={`${key.replace(/_/g, ' ')}${isRequired ? ' *' : ''}`}
+                                value={item[key] || ''}
+                                onChange={(e) => updateArrayField(section, idx, key, e.target.value)}
+                                className={`w-full p-1 bg-gray-700 rounded border ${isRequired ? 'border-blue-500' : 'border-gray-600'} text-sm`}
+                              />
+                            </div>
                           );
                         })}
                       </div>
