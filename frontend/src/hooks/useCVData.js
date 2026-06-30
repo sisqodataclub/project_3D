@@ -26,19 +26,24 @@ export function useCVData() {
             }),
           ]);
           if (resumesRes.ok && appsRes.ok) {
-            const r = await resumesRes.json();
-            const a = await appsRes.json();
-            setResumes(r);
-            setApplications(a);
-            // Check for guest data after migration
+            const resumesData = await resumesRes.json();
+            const appsData = await appsRes.json();
+            // ✅ Extract results from paginated response
+            setResumes(resumesData.results || []);
+            setApplications(appsData.results || []);
+            // Check for guest data
             const guestR = JSON.parse(localStorage.getItem('guest_resumes') || '[]');
             const guestA = JSON.parse(localStorage.getItem('guest_applications') || '[]');
             setHasGuestData(guestR.length > 0 || guestA.length > 0);
           } else {
             console.error('Failed to fetch data');
+            setResumes([]);
+            setApplications([]);
           }
         } catch (e) {
           console.error(e);
+          setResumes([]);
+          setApplications([]);
         }
       } else {
         // Not authenticated – load guest data
@@ -53,9 +58,7 @@ export function useCVData() {
     loadData();
   }, [isAuthenticated, accessToken]);
 
-  // Create functions (createResume, createApplication, migrateGuestData) remain the same as before.
-  // I'll include them below for completeness.
-
+  // ---- Create Resume ----
   const createResume = async (data) => {
     if (isAuthenticated) {
       const res = await fetch(`${API_BASE}/resumes/`, {
@@ -86,6 +89,7 @@ export function useCVData() {
     }
   };
 
+  // ---- Create Application ----
   const createApplication = async (data) => {
     if (isAuthenticated) {
       const res = await fetch(`${API_BASE}/applications/`, {
@@ -116,6 +120,7 @@ export function useCVData() {
     }
   };
 
+  // ---- Migrate Guest Data ----
   const migrateGuestData = async () => {
     if (!isAuthenticated) return;
     const guestR = JSON.parse(localStorage.getItem('guest_resumes') || '[]');
@@ -156,8 +161,10 @@ export function useCVData() {
         fetch(`${API_BASE}/applications/`, { headers: { Authorization: `Bearer ${accessToken}` } }),
       ]);
       if (rRes.ok && aRes.ok) {
-        setResumes(await rRes.json());
-        setApplications(await aRes.json());
+        const rd = await rRes.json();
+        const ad = await aRes.json();
+        setResumes(rd.results || []);
+        setApplications(ad.results || []);
       }
     } catch (e) {
       console.error(e);
