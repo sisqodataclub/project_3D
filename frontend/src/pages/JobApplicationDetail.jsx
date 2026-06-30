@@ -1,41 +1,49 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { useCVData } from '../hooks/useCVData';
 import { useHVT } from '../context/HVTContext';
+
+const API_BASE = 'https://api.franciscodes.com/cv/api';
 
 export default function JobApplicationDetail() {
   const { id } = useParams();
-  const { fetchApplication } = useCVData();
-  const { isAuthenticated, loading: authLoading } = useHVT();
-
+  const { accessToken, isAuthenticated, loading: authLoading } = useHVT();
   const [app, setApp] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // Fetch job application data – waits for auth to be ready
   useEffect(() => {
-    const loadApplication = async () => {
-      // If auth is still initializing on refresh, wait
+    const fetchApplication = async () => {
       if (authLoading) return;
 
-      if (!isAuthenticated) {
+      if (!isAuthenticated || !accessToken) {
         setError('Please log in to view this application.');
         setLoading(false);
         return;
       }
 
       try {
-        const data = await fetchApplication(id);
-        setApp(data);
-        setError(null);
-      } catch (err) {
-        setError(err.message || 'Failed to load application.');
+        const res = await fetch(`${API_BASE}/applications/${id}/`, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setApp(data);
+          setError(null);
+        } else if (res.status === 404) {
+          setError('Application not found.');
+        } else {
+          setError('Failed to load application.');
+        }
+      } catch (e) {
+        setError('Network error.');
       } finally {
         setLoading(false);
       }
     };
-    
-    loadApplication();
-  }, [id, fetchApplication, isAuthenticated, authLoading]);
+
+    fetchApplication();
+  }, [id, isAuthenticated, accessToken, authLoading]);
 
   // Show loading while auth is restoring OR data is loading
   if (authLoading || loading) {
@@ -46,19 +54,27 @@ export default function JobApplicationDetail() {
     );
   }
 
-  // If not authenticated (after auth loading is done), or error occurred
-  if (!isAuthenticated || error || !app) {
+  // If not authenticated (after auth loading is done), show login prompt
+  if (!isAuthenticated || error) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#0b0e14] text-slate-100">
-        <div className="text-center">
-          <p className="text-red-400">{error || 'Application not found.'}</p>
+        <div>
+          <p className="text-red-400">{error || 'Please log in to view this application.'}</p>
           <Link
             to="/cv"
-            className="mt-4 inline-block px-4 py-2 bg-blue-600 rounded hover:bg-blue-700 transition"
+            className="mt-4 inline-block px-4 py-2 bg-blue-600 rounded hover:bg-blue-700"
           >
             Back to CV Manager
           </Link>
         </div>
+      </div>
+    );
+  }
+
+  if (!app) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#0b0e14] text-slate-100">
+        <p>No application data found.</p>
       </div>
     );
   }
