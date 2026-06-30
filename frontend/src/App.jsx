@@ -24,6 +24,9 @@ import ReviewAndSubmit from "./pages/ReviewAndSubmit";
 import BookingWizard from "./pages/BookingWizard";
 import PerfumeAnalyticsDashboard from "./pages/Dashboard";
 import ManVanAnalyticsDashboard from "./pages/ManVanAnalyticsDashboard";
+import ProjectsPage from "./pages/ProjectsPage";
+
+
 
 import {
   About,
@@ -77,6 +80,7 @@ const App = () => {
             <Routes>
               {/* Public + Home */}
               <Route path="/" element={<Home />} />
+              <Route path="/projects" element={<ProjectsPage />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<RegisterAndLogout />} />
               <Route path="/logout" element={<Logout />} />

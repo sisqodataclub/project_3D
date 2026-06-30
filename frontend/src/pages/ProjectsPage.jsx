@@ -1,17 +1,15 @@
-// src/components/Works.jsx
+// src/pages/ProjectsPage.jsx
 import React, { useState, useMemo } from "react";
-import Tilt from "react-parallax-tilt";
 import { motion } from "framer-motion";
-import { Link } from "react-router-dom"; // <-- NEW
-
-import { styles } from "../styles";
-import { github } from "../assets";
-import { textVariant, fadeIn } from "../utils/motion";
+import Tilt from "react-parallax-tilt";
 import { projects } from "../constants";
-import TechHeader from "../components/TechHeader";
+import { github } from "../assets";
+import { styles } from "../styles";
+import { textVariant, fadeIn } from "../utils/motion";
+import { SectionWrapper } from "../hoc";
 
 const ProjectCard = ({ index, name, description, tags, image, source_code_link }) => (
-  <motion.div variants={fadeIn("up", "spring", index * 0.5, 0.75)}>
+  <motion.div variants={fadeIn("up", "spring", index * 0.1, 0.75)}>
     <Tilt
       options={{ max: 45, scale: 1, speed: 450 }}
       className="bg-tertiary p-5 rounded-2xl sm:w-[360px] w-full"
@@ -39,7 +37,7 @@ const ProjectCard = ({ index, name, description, tags, image, source_code_link }
 
       <div className="mt-4 flex flex-wrap gap-2">
         {tags.map((tag) => (
-          <p key={`${name}-${tag.name}`} className={`text-[14px] ${tag.color}`}>
+          <p key={tag.name} className={`text-[14px] ${tag.color}`}>
             #{tag.name}
           </p>
         ))}
@@ -48,7 +46,7 @@ const ProjectCard = ({ index, name, description, tags, image, source_code_link }
   </motion.div>
 );
 
-const Works = () => {
+const ProjectsPage = () => {
   const [activeCategory, setActiveCategory] = useState("All");
 
   const categories = useMemo(() => {
@@ -62,13 +60,14 @@ const Works = () => {
       : projects.filter((project) => project.category === activeCategory);
 
   return (
-    <>
+    <div className="bg-primary min-h-screen py-20 px-4">
       <motion.div variants={textVariant()}>
-        <TechHeader title="My Projects" />
+        <p className={styles.sectionSubText}>My Portfolio</p>
+        <h2 className={styles.sectionHeadText}>Projects.</h2>
       </motion.div>
 
       {/* Category Filters */}
-      <div className="mt-6 mb-10 flex flex-wrap gap-4 justify-center">
+      <div className="flex flex-wrap gap-4 mt-8 justify-center">
         {categories.map((cat) => (
           <button
             key={cat}
@@ -84,32 +83,18 @@ const Works = () => {
         ))}
       </div>
 
-      {/* Project Cards */}
-      <div className="mt-10 flex flex-wrap gap-7 justify-center">
+      {/* Project Grid */}
+      <div className="mt-12 flex flex-wrap gap-8 justify-center">
         {filteredProjects.length > 0 ? (
           filteredProjects.map((project, index) => (
-            <ProjectCard
-              key={project.name}
-              index={index}
-              {...project}
-            />
+            <ProjectCard key={`project-${index}`} index={index} {...project} />
           ))
         ) : (
-          <p className="text-center text-gray-400">No projects found.</p>
+          <p className="text-white">No projects found in this category.</p>
         )}
       </div>
-
-      {/* 🆕 View All Projects Button */}
-      <div className="mt-12 flex justify-center">
-        <Link
-          to="/projects"
-          className="px-8 py-3 bg-[#915EFF] text-white rounded-xl font-medium hover:bg-[#7a4fd0] transition-all duration-300 shadow-lg hover:shadow-xl"
-        >
-          View All Projects →
-        </Link>
-      </div>
-    </>
+    </div>
   );
 };
 
-export default Works;
+export default ProjectsPage;
