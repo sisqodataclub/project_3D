@@ -16,29 +16,84 @@ export default function CVManager() {
     hasGuestData,
   } = useCVData();
 
-  // Guard against non-array data
-  const safeResumes = Array.isArray(resumes) ? resumes : [];
-  const safeApplications = Array.isArray(applications) ? applications : [];
-
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showCVForm, setShowCVForm] = useState(false);
   const [showJobForm, setShowJobForm] = useState(false);
 
-  // ---- CV Form state ----
-  const [cvFormData, setCvFormData] = useState({
+  // ---- Resume Form State (nested) ----
+  const [cvForm, setCvForm] = useState({
     full_name: '',
     about: '',
     email: '',
     phone: '',
-    skills: '',
-    languages: '',
-    education1: '',
-    project1: '',
-    experience1: '',
-    achievements: '',
+    age: '',
+    educations: [{ institution: '', degree: '', field_of_study: '', start_date: '', end_date: '', description: '' }],
+    experiences: [{ company: '', position: '', start_date: '', end_date: '', description: '', location: '' }],
+    projects: [{ name: '', description: '', url: '', start_date: '', end_date: '' }],
+    skills: [{ name: '', proficiency: '' }],
+    languages: [{ name: '', proficiency: '' }],
+    achievements: [{ description: '' }],
   });
 
-  // ---- Job Application Form state ----
+  // ---- Helper: update a nested array field ----
+  const updateArrayField = (section, index, field, value) => {
+    const updated = [...cvForm[section]];
+    updated[index][field] = value;
+    setCvForm({ ...cvForm, [section]: updated });
+  };
+
+  const addArrayItem = (section, emptyItem) => {
+    setCvForm({ ...cvForm, [section]: [...cvForm[section], emptyItem] });
+  };
+
+  const removeArrayItem = (section, index) => {
+    if (cvForm[section].length <= 1) return;
+    const updated = [...cvForm[section]];
+    updated.splice(index, 1);
+    setCvForm({ ...cvForm, [section]: updated });
+  };
+
+  // ---- Submit ----
+  const handleCvSubmit = async (e) => {
+    e.preventDefault();
+    if (!cvForm.full_name || !cvForm.about || !cvForm.email || !cvForm.phone) {
+      alert('Please fill in all required fields.');
+      return;
+    }
+    try {
+      // Filter out empty items
+      const payload = {
+        ...cvForm,
+        age: cvForm.age || null,
+        educations: cvForm.educations.filter(e => e.institution || e.degree || e.description),
+        experiences: cvForm.experiences.filter(e => e.company || e.position || e.description),
+        projects: cvForm.projects.filter(p => p.name || p.description),
+        skills: cvForm.skills.filter(s => s.name),
+        languages: cvForm.languages.filter(l => l.name),
+        achievements: cvForm.achievements.filter(a => a.description),
+      };
+      await createResume(payload);
+      setShowCVForm(false);
+      // Reset form
+      setCvForm({
+        full_name: '',
+        about: '',
+        email: '',
+        phone: '',
+        age: '',
+        educations: [{ institution: '', degree: '', field_of_study: '', start_date: '', end_date: '', description: '' }],
+        experiences: [{ company: '', position: '', start_date: '', end_date: '', description: '', location: '' }],
+        projects: [{ name: '', description: '', url: '', start_date: '', end_date: '' }],
+        skills: [{ name: '', proficiency: '' }],
+        languages: [{ name: '', proficiency: '' }],
+        achievements: [{ description: '' }],
+      });
+    } catch (err) {
+      alert('Error creating resume: ' + err.message);
+    }
+  };
+
+  // ---- Job Application Handlers (unchanged) ----
   const [jobFormData, setJobFormData] = useState({
     job_link: '',
     company: '',
@@ -49,38 +104,6 @@ export default function CVManager() {
     notes: '',
   });
 
-  // ---- CV Handlers ----
-  const handleCvChange = (e) => {
-    setCvFormData({ ...cvFormData, [e.target.name]: e.target.value });
-  };
-
-  const handleCvSubmit = async (e) => {
-    e.preventDefault();
-    if (!cvFormData.full_name || !cvFormData.about || !cvFormData.email || !cvFormData.phone) {
-      alert('Please fill in all required fields.');
-      return;
-    }
-    try {
-      await createResume(cvFormData);
-      setCvFormData({
-        full_name: '',
-        about: '',
-        email: '',
-        phone: '',
-        skills: '',
-        languages: '',
-        education1: '',
-        project1: '',
-        experience1: '',
-        achievements: '',
-      });
-      setShowCVForm(false);
-    } catch (err) {
-      alert('Error creating resume: ' + err.message);
-    }
-  };
-
-  // ---- Job Application Handlers ----
   const handleJobChange = (e) => {
     setJobFormData({ ...jobFormData, [e.target.name]: e.target.value });
   };
@@ -112,59 +135,39 @@ export default function CVManager() {
     logout();
   };
 
-  // Show loading while auth or data is loading
   if (authLoading || dataLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[#0b0e14] text-slate-100">
-        Loading...
-      </div>
-    );
-  }
-
-  // If not authenticated, show prompt to login (but still render the modal trigger)
-  if (!isAuthenticated) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[#0b0e14] text-slate-100">
-        <button
-          onClick={() => setShowAuthModal(true)}
-          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg font-semibold transition"
-        >
-          Login / Register
-        </button>
-        <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
-      </div>
-    );
+    return <div className="min-h-screen flex items-center justify-center bg-[#0b0e14] text-slate-100">Loading...</div>;
   }
 
   return (
     <div className="max-w-6xl mx-auto p-6 bg-[#0b0e14] text-slate-100">
-      {/* Header with Auth Controls */}
+      {/* Header */}
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">📄 CV Manager</h1>
         <div>
-          <div className="flex items-center gap-3">
-            <span className="text-gray-300 text-sm">Hi, {user?.email || 'User'}</span>
-            <button
-              onClick={handleLogout}
-              className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg font-semibold transition text-sm"
-            >
-              Logout
+          {!isAuthenticated ? (
+            <button onClick={() => setShowAuthModal(true)} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg font-semibold transition">
+              Login / Register
             </button>
-          </div>
+          ) : (
+            <div className="flex items-center gap-3">
+              <span className="text-gray-300 text-sm">Hi, {user?.email || 'User'}</span>
+              <button onClick={handleLogout} className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg font-semibold transition text-sm">
+                Logout
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
       {/* Migration Banner */}
-      {hasGuestData && (
+      {isAuthenticated && hasGuestData && (
         <div className="bg-yellow-800/50 border border-yellow-600 p-4 rounded-lg mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
           <span className="text-sm">
-            You have guest data ({safeResumes.length} resumes, {safeApplications.length} applications).
+            You have guest data ({resumes.length} resumes, {applications.length} applications).
             Would you like to save it to your account?
           </span>
-          <button
-            onClick={migrateGuestData}
-            className="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 rounded-lg font-semibold transition text-sm"
-          >
+          <button onClick={migrateGuestData} className="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 rounded-lg font-semibold transition text-sm">
             Migrate to Account
           </button>
         </div>
@@ -173,134 +176,71 @@ export default function CVManager() {
       {/* ---- RESUME SECTION ---- */}
       <div className="mb-8">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold">Your Resumes ({safeResumes.length})</h2>
-          <button
-            onClick={() => setShowCVForm(!showCVForm)}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg font-semibold transition"
-          >
-            {showCVForm ? 'Cancel' : '+ Add New CV'}
-          </button>
+          <h2 className="text-xl font-semibold">Your Resumes ({resumes.length})</h2>
+          {isAuthenticated && (
+            <button onClick={() => setShowCVForm(!showCVForm)} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg font-semibold transition">
+              {showCVForm ? 'Cancel' : '+ Add New CV'}
+            </button>
+          )}
         </div>
 
-        {showCVForm && (
+        {!isAuthenticated && resumes.length === 0 && (
+          <p className="text-gray-400">Please login or register to create and save your CVs.</p>
+        )}
+
+        {showCVForm && isAuthenticated && (
           <form onSubmit={handleCvSubmit} className="bg-gray-800 p-4 rounded-lg mb-4 space-y-4">
+            {/* Basic Info */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">Full Name *</label>
-                <input
-                  type="text"
-                  name="full_name"
-                  value={cvFormData.full_name}
-                  onChange={handleCvChange}
-                  className="w-full p-2 bg-gray-700 rounded border border-gray-600"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Email *</label>
-                <input
-                  type="email"
-                  name="email"
-                  value={cvFormData.email}
-                  onChange={handleCvChange}
-                  className="w-full p-2 bg-gray-700 rounded border border-gray-600"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Phone *</label>
-                <input
-                  type="text"
-                  name="phone"
-                  value={cvFormData.phone}
-                  onChange={handleCvChange}
-                  className="w-full p-2 bg-gray-700 rounded border border-gray-600"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">About *</label>
-                <textarea
-                  name="about"
-                  rows="2"
-                  value={cvFormData.about}
-                  onChange={handleCvChange}
-                  className="w-full p-2 bg-gray-700 rounded border border-gray-600"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Skills (comma-separated)</label>
-                <input
-                  type="text"
-                  name="skills"
-                  value={cvFormData.skills}
-                  onChange={handleCvChange}
-                  className="w-full p-2 bg-gray-700 rounded border border-gray-600"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Languages</label>
-                <input
-                  type="text"
-                  name="languages"
-                  value={cvFormData.languages}
-                  onChange={handleCvChange}
-                  className="w-full p-2 bg-gray-700 rounded border border-gray-600"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Education</label>
-                <input
-                  type="text"
-                  name="education1"
-                  value={cvFormData.education1}
-                  onChange={handleCvChange}
-                  className="w-full p-2 bg-gray-700 rounded border border-gray-600"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Project</label>
-                <input
-                  type="text"
-                  name="project1"
-                  value={cvFormData.project1}
-                  onChange={handleCvChange}
-                  className="w-full p-2 bg-gray-700 rounded border border-gray-600"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Experience</label>
-                <input
-                  type="text"
-                  name="experience1"
-                  value={cvFormData.experience1}
-                  onChange={handleCvChange}
-                  className="w-full p-2 bg-gray-700 rounded border border-gray-600"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Achievements</label>
-                <input
-                  type="text"
-                  name="achievements"
-                  value={cvFormData.achievements}
-                  onChange={handleCvChange}
-                  className="w-full p-2 bg-gray-700 rounded border border-gray-600"
-                />
-              </div>
+              <div><label className="block text-sm font-medium mb-1">Full Name *</label><input type="text" name="full_name" value={cvForm.full_name} onChange={(e) => setCvForm({...cvForm, full_name: e.target.value})} className="w-full p-2 bg-gray-700 rounded border border-gray-600" required /></div>
+              <div><label className="block text-sm font-medium mb-1">Email *</label><input type="email" name="email" value={cvForm.email} onChange={(e) => setCvForm({...cvForm, email: e.target.value})} className="w-full p-2 bg-gray-700 rounded border border-gray-600" required /></div>
+              <div><label className="block text-sm font-medium mb-1">Phone *</label><input type="text" name="phone" value={cvForm.phone} onChange={(e) => setCvForm({...cvForm, phone: e.target.value})} className="w-full p-2 bg-gray-700 rounded border border-gray-600" required /></div>
+              <div><label className="block text-sm font-medium mb-1">About *</label><textarea name="about" rows="2" value={cvForm.about} onChange={(e) => setCvForm({...cvForm, about: e.target.value})} className="w-full p-2 bg-gray-700 rounded border border-gray-600" required /></div>
+              <div><label className="block text-sm font-medium mb-1">Age</label><input type="number" name="age" value={cvForm.age} onChange={(e) => setCvForm({...cvForm, age: e.target.value})} className="w-full p-2 bg-gray-700 rounded border border-gray-600" /></div>
             </div>
-            <button type="submit" className="px-6 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg font-semibold transition">
-              Create Resume
-            </button>
+
+            {/* Dynamic Sections */}
+            {['educations', 'experiences', 'projects', 'skills', 'languages', 'achievements'].map((section) => {
+              const label = section.charAt(0).toUpperCase() + section.slice(1);
+              const items = cvForm[section];
+              const emptyItem = {
+                educations: { institution: '', degree: '', field_of_study: '', start_date: '', end_date: '', description: '' },
+                experiences: { company: '', position: '', start_date: '', end_date: '', description: '', location: '' },
+                projects: { name: '', description: '', url: '', start_date: '', end_date: '' },
+                skills: { name: '', proficiency: '' },
+                languages: { name: '', proficiency: '' },
+                achievements: { description: '' },
+              }[section];
+
+              return (
+                <div key={section} className="border border-gray-700 p-3 rounded">
+                  <div className="flex justify-between items-center mb-2">
+                    <h3 className="text-lg font-medium">{label}</h3>
+                    <button type="button" onClick={() => addArrayItem(section, emptyItem)} className="text-sm text-blue-400 hover:text-blue-300">+ Add {label.slice(0, -1)}</button>
+                  </div>
+                  {items.map((item, idx) => (
+                    <div key={idx} className="flex gap-2 items-start mb-2">
+                      <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-2">
+                        {Object.keys(item).map((key) => (
+                          <input key={key} placeholder={key.replace(/_/g, ' ')} value={item[key] || ''} onChange={(e) => updateArrayField(section, idx, key, e.target.value)} className="p-1 bg-gray-700 rounded border border-gray-600 text-sm" />
+                        ))}
+                      </div>
+                      <button type="button" onClick={() => removeArrayItem(section, idx)} className="text-red-400 hover:text-red-300 text-sm">✕</button>
+                    </div>
+                  ))}
+                </div>
+              );
+            })}
+
+            <button type="submit" className="px-6 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg font-semibold transition">Create Resume</button>
           </form>
         )}
 
-        {safeResumes.length === 0 ? (
-          <p className="text-gray-400">No resumes yet. Create one above.</p>
+        {resumes.length === 0 ? (
+          <p className="text-gray-400">No resumes yet. {isAuthenticated ? 'Create one above.' : 'Login to create one.'}</p>
         ) : (
           <div className="grid gap-4 md:grid-cols-2">
-            {safeResumes.map((r) => (
+            {resumes.map((r) => (
               <Link to={`/cv/${r.id}`} key={r.id} className="block transition hover:scale-[1.02]">
                 <div className="bg-gray-800 p-4 rounded-lg shadow cursor-pointer">
                   <h3 className="text-lg font-bold">{r.full_name}</h3>
@@ -315,154 +255,48 @@ export default function CVManager() {
         )}
       </div>
 
-      {/* ---- JOB APPLICATION SECTION ---- */}
+      {/* ---- JOB APPLICATION SECTION (unchanged) ---- */}
       <div>
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold">Your Job Applications ({safeApplications.length})</h2>
-          <button
-            onClick={() => setShowJobForm(!showJobForm)}
-            className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg font-semibold transition"
-          >
-            {showJobForm ? 'Cancel' : '+ Add Job Application'}
-          </button>
+          <h2 className="text-xl font-semibold">Your Job Applications ({applications.length})</h2>
+          {isAuthenticated && (
+            <button onClick={() => setShowJobForm(!showJobForm)} className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg font-semibold transition">
+              {showJobForm ? 'Cancel' : '+ Add Job Application'}
+            </button>
+          )}
         </div>
 
-        {showJobForm && (
+        {!isAuthenticated && applications.length === 0 && (
+          <p className="text-gray-400">Please login or register to track job applications.</p>
+        )}
+
+        {showJobForm && isAuthenticated && (
           <form onSubmit={handleJobSubmit} className="bg-gray-800 p-4 rounded-lg mb-4 space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">Company *</label>
-                <input
-                  type="text"
-                  name="company"
-                  value={jobFormData.company}
-                  onChange={handleJobChange}
-                  className="w-full p-2 bg-gray-700 rounded border border-gray-600"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Position *</label>
-                <input
-                  type="text"
-                  name="position"
-                  value={jobFormData.position}
-                  onChange={handleJobChange}
-                  className="w-full p-2 bg-gray-700 rounded border border-gray-600"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Job Link *</label>
-                <input
-                  type="url"
-                  name="job_link"
-                  value={jobFormData.job_link}
-                  onChange={handleJobChange}
-                  className="w-full p-2 bg-gray-700 rounded border border-gray-600"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Date Applied</label>
-                <input
-                  type="date"
-                  name="date_applied"
-                  value={jobFormData.date_applied}
-                  onChange={handleJobChange}
-                  className="w-full p-2 bg-gray-700 rounded border border-gray-600"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Status</label>
-                <select
-                  name="status"
-                  value={jobFormData.status}
-                  onChange={handleJobChange}
-                  className="w-full p-2 bg-gray-700 rounded border border-gray-600"
-                >
-                  <option value="saved">Saved</option>
-                  <option value="applied">Applied</option>
-                  <option value="interviewing">Interviewing</option>
-                  <option value="offered">Offered</option>
-                  <option value="rejected">Rejected</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Resume Used</label>
-                <select
-                  name="resume_used"
-                  value={jobFormData.resume_used}
-                  onChange={handleJobChange}
-                  className="w-full p-2 bg-gray-700 rounded border border-gray-600"
-                >
-                  <option value="">None</option>
-                  {safeResumes.map((r) => (
-                    <option key={r.id} value={r.id}>
-                      {r.full_name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium mb-1">Notes</label>
-                <textarea
-                  name="notes"
-                  rows="2"
-                  value={jobFormData.notes}
-                  onChange={handleJobChange}
-                  className="w-full p-2 bg-gray-700 rounded border border-gray-600"
-                />
-              </div>
+              <div><label className="block text-sm font-medium mb-1">Company *</label><input type="text" name="company" value={jobFormData.company} onChange={handleJobChange} className="w-full p-2 bg-gray-700 rounded border border-gray-600" required /></div>
+              <div><label className="block text-sm font-medium mb-1">Position *</label><input type="text" name="position" value={jobFormData.position} onChange={handleJobChange} className="w-full p-2 bg-gray-700 rounded border border-gray-600" required /></div>
+              <div><label className="block text-sm font-medium mb-1">Job Link *</label><input type="url" name="job_link" value={jobFormData.job_link} onChange={handleJobChange} className="w-full p-2 bg-gray-700 rounded border border-gray-600" required /></div>
+              <div><label className="block text-sm font-medium mb-1">Date Applied</label><input type="date" name="date_applied" value={jobFormData.date_applied} onChange={handleJobChange} className="w-full p-2 bg-gray-700 rounded border border-gray-600" /></div>
+              <div><label className="block text-sm font-medium mb-1">Status</label><select name="status" value={jobFormData.status} onChange={handleJobChange} className="w-full p-2 bg-gray-700 rounded border border-gray-600"><option value="saved">Saved</option><option value="applied">Applied</option><option value="interviewing">Interviewing</option><option value="offered">Offered</option><option value="rejected">Rejected</option></select></div>
+              <div><label className="block text-sm font-medium mb-1">Resume Used</label><select name="resume_used" value={jobFormData.resume_used} onChange={handleJobChange} className="w-full p-2 bg-gray-700 rounded border border-gray-600"><option value="">None</option>{resumes.map((r) => <option key={r.id} value={r.id}>{r.full_name}</option>)}</select></div>
+              <div className="md:col-span-2"><label className="block text-sm font-medium mb-1">Notes</label><textarea name="notes" rows="2" value={jobFormData.notes} onChange={handleJobChange} className="w-full p-2 bg-gray-700 rounded border border-gray-600" /></div>
             </div>
-            <button type="submit" className="px-6 py-2 bg-green-600 hover:bg-green-700 rounded-lg font-semibold transition">
-              Create Application
-            </button>
+            <button type="submit" className="px-6 py-2 bg-green-600 hover:bg-green-700 rounded-lg font-semibold transition">Create Application</button>
           </form>
         )}
 
-        {safeApplications.length === 0 ? (
-          <p className="text-gray-400">No applications yet. Create one above.</p>
+        {applications.length === 0 ? (
+          <p className="text-gray-400">No applications yet. {isAuthenticated ? 'Create one above.' : 'Login to track applications.'}</p>
         ) : (
           <div className="grid gap-4 md:grid-cols-2">
-            {safeApplications.map((app) => (
+            {applications.map((app) => (
               <Link to={`/cv/application/${app.id}`} key={app.id} className="block transition hover:scale-[1.02]">
                 <div className="bg-gray-800 p-4 rounded-lg shadow cursor-pointer">
-                  <h3 className="text-lg font-bold">
-                    {app.position} at {app.company}
-                  </h3>
-                  <p className="text-sm text-gray-300">
-                    Status:{' '}
-                    <span
-                      className={`font-semibold ${
-                        app.status === 'rejected'
-                          ? 'text-red-400'
-                          : app.status === 'offered'
-                          ? 'text-green-400'
-                          : app.status === 'interviewing'
-                          ? 'text-yellow-400'
-                          : 'text-blue-400'
-                      }`}
-                    >
-                      {app.status}
-                    </span>
-                  </p>
-                  <p className="text-sm text-gray-400">
-                    🔗{' '}
-                    <a
-                      href={app.job_link}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-400 hover:underline"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      View Job
-                    </a>
-                  </p>
+                  <h3 className="text-lg font-bold">{app.position} at {app.company}</h3>
+                  <p className="text-sm text-gray-300">Status: <span className={`font-semibold ${app.status === 'rejected' ? 'text-red-400' : app.status === 'offered' ? 'text-green-400' : app.status === 'interviewing' ? 'text-yellow-400' : 'text-blue-400'}`}>{app.status}</span></p>
+                  <p className="text-sm text-gray-400">🔗 <a href={app.job_link} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline" onClick={(e) => e.stopPropagation()}>View Job</a></p>
                   {app.notes && <p className="text-sm text-gray-400 mt-1">📝 {app.notes}</p>}
-                  <p className="text-xs text-gray-500 mt-2">
-                    Applied: {app.date_applied ? new Date(app.date_applied).toLocaleDateString() : 'N/A'}
-                  </p>
+                  <p className="text-xs text-gray-500 mt-2">Applied: {app.date_applied ? new Date(app.date_applied).toLocaleDateString() : 'N/A'}</p>
                 </div>
               </Link>
             ))}
@@ -470,7 +304,6 @@ export default function CVManager() {
         )}
       </div>
 
-      {/* Auth Modal */}
       <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
     </div>
   );
