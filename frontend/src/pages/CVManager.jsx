@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useCVData } from '../hooks/useCVData';
 import { useHVT } from '../context/HVTContext';
@@ -16,10 +16,13 @@ export default function CVManager() {
     hasGuestData,
   } = useCVData();
 
+  // Guard against non-array data
+  const safeResumes = Array.isArray(resumes) ? resumes : [];
+  const safeApplications = Array.isArray(applications) ? applications : [];
+
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showCVForm, setShowCVForm] = useState(false);
   const [showJobForm, setShowJobForm] = useState(false);
-  const [error, setError] = useState(null);
 
   // ---- CV Form state ----
   const [cvFormData, setCvFormData] = useState({
@@ -109,22 +112,26 @@ export default function CVManager() {
     logout();
   };
 
-  // If auth is loading, show spinner
-  if (authLoading) {
+  // Show loading while auth or data is loading
+  if (authLoading || dataLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#0b0e14] text-slate-100">
-        <div className="text-center">
-          <div className="text-xl">Loading...</div>
-        </div>
+        Loading...
       </div>
     );
   }
 
-  // If there's a general error, show it
-  if (error) {
+  // If not authenticated, show prompt to login (but still render the modal trigger)
+  if (!isAuthenticated) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#0b0e14] text-red-400">
-        <div>Error: {error}</div>
+      <div className="min-h-screen flex items-center justify-center bg-[#0b0e14] text-slate-100">
+        <button
+          onClick={() => setShowAuthModal(true)}
+          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg font-semibold transition"
+        >
+          Login / Register
+        </button>
+        <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
       </div>
     );
   }
@@ -135,32 +142,23 @@ export default function CVManager() {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">📄 CV Manager</h1>
         <div>
-          {!isAuthenticated ? (
+          <div className="flex items-center gap-3">
+            <span className="text-gray-300 text-sm">Hi, {user?.email || 'User'}</span>
             <button
-              onClick={() => setShowAuthModal(true)}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg font-semibold transition"
+              onClick={handleLogout}
+              className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg font-semibold transition text-sm"
             >
-              Login / Register
+              Logout
             </button>
-          ) : (
-            <div className="flex items-center gap-3">
-              <span className="text-gray-300 text-sm">Hi, {user?.email || 'User'}</span>
-              <button
-                onClick={handleLogout}
-                className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg font-semibold transition text-sm"
-              >
-                Logout
-              </button>
-            </div>
-          )}
+          </div>
         </div>
       </div>
 
       {/* Migration Banner */}
-      {isAuthenticated && hasGuestData && (
+      {hasGuestData && (
         <div className="bg-yellow-800/50 border border-yellow-600 p-4 rounded-lg mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
           <span className="text-sm">
-            You have guest data ({resumes.length} resumes, {applications.length} applications).
+            You have guest data ({safeResumes.length} resumes, {safeApplications.length} applications).
             Would you like to save it to your account?
           </span>
           <button
@@ -175,22 +173,16 @@ export default function CVManager() {
       {/* ---- RESUME SECTION ---- */}
       <div className="mb-8">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold">Your Resumes ({resumes.length})</h2>
-          {isAuthenticated && (
-            <button
-              onClick={() => setShowCVForm(!showCVForm)}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg font-semibold transition"
-            >
-              {showCVForm ? 'Cancel' : '+ Add New CV'}
-            </button>
-          )}
+          <h2 className="text-xl font-semibold">Your Resumes ({safeResumes.length})</h2>
+          <button
+            onClick={() => setShowCVForm(!showCVForm)}
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg font-semibold transition"
+          >
+            {showCVForm ? 'Cancel' : '+ Add New CV'}
+          </button>
         </div>
 
-        {!isAuthenticated && resumes.length === 0 && (
-          <p className="text-gray-400">Please login or register to create and save your CVs.</p>
-        )}
-
-        {showCVForm && isAuthenticated && (
+        {showCVForm && (
           <form onSubmit={handleCvSubmit} className="bg-gray-800 p-4 rounded-lg mb-4 space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -304,13 +296,11 @@ export default function CVManager() {
           </form>
         )}
 
-        {dataLoading ? (
-          <div className="text-gray-400">Loading resumes...</div>
-        ) : resumes.length === 0 ? (
-          <p className="text-gray-400">No resumes yet. {isAuthenticated ? 'Create one above.' : 'Login to create one.'}</p>
+        {safeResumes.length === 0 ? (
+          <p className="text-gray-400">No resumes yet. Create one above.</p>
         ) : (
           <div className="grid gap-4 md:grid-cols-2">
-            {resumes.map((r) => (
+            {safeResumes.map((r) => (
               <Link to={`/cv/${r.id}`} key={r.id} className="block transition hover:scale-[1.02]">
                 <div className="bg-gray-800 p-4 rounded-lg shadow cursor-pointer">
                   <h3 className="text-lg font-bold">{r.full_name}</h3>
@@ -328,22 +318,16 @@ export default function CVManager() {
       {/* ---- JOB APPLICATION SECTION ---- */}
       <div>
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold">Your Job Applications ({applications.length})</h2>
-          {isAuthenticated && (
-            <button
-              onClick={() => setShowJobForm(!showJobForm)}
-              className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg font-semibold transition"
-            >
-              {showJobForm ? 'Cancel' : '+ Add Job Application'}
-            </button>
-          )}
+          <h2 className="text-xl font-semibold">Your Job Applications ({safeApplications.length})</h2>
+          <button
+            onClick={() => setShowJobForm(!showJobForm)}
+            className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg font-semibold transition"
+          >
+            {showJobForm ? 'Cancel' : '+ Add Job Application'}
+          </button>
         </div>
 
-        {!isAuthenticated && applications.length === 0 && (
-          <p className="text-gray-400">Please login or register to track job applications.</p>
-        )}
-
-        {showJobForm && isAuthenticated && (
+        {showJobForm && (
           <form onSubmit={handleJobSubmit} className="bg-gray-800 p-4 rounded-lg mb-4 space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -413,7 +397,7 @@ export default function CVManager() {
                   className="w-full p-2 bg-gray-700 rounded border border-gray-600"
                 >
                   <option value="">None</option>
-                  {resumes.map((r) => (
+                  {safeResumes.map((r) => (
                     <option key={r.id} value={r.id}>
                       {r.full_name}
                     </option>
@@ -437,13 +421,11 @@ export default function CVManager() {
           </form>
         )}
 
-        {dataLoading ? (
-          <div className="text-gray-400">Loading applications...</div>
-        ) : applications.length === 0 ? (
-          <p className="text-gray-400">No applications yet. {isAuthenticated ? 'Create one above.' : 'Login to track applications.'}</p>
+        {safeApplications.length === 0 ? (
+          <p className="text-gray-400">No applications yet. Create one above.</p>
         ) : (
           <div className="grid gap-4 md:grid-cols-2">
-            {applications.map((app) => (
+            {safeApplications.map((app) => (
               <Link to={`/cv/application/${app.id}`} key={app.id} className="block transition hover:scale-[1.02]">
                 <div className="bg-gray-800 p-4 rounded-lg shadow cursor-pointer">
                   <h3 className="text-lg font-bold">
