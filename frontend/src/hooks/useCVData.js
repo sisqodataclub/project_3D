@@ -5,29 +5,17 @@ import { useHVT } from '../context/HVTContext';
 const API_BASE = 'https://api.franciscodes.com/cv/api';
 
 export function useCVData() {
-  const { isAuthenticated, accessToken, user } = useHVT();
+  const { isAuthenticated, accessToken } = useHVT();
   const [resumes, setResumes] = useState([]);
   const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [hasGuestData, setHasGuestData] = useState(false);
 
-  // ---- Load guest data when not authenticated ----
+  // Load data based on auth state
   useEffect(() => {
-    if (!isAuthenticated) {
-      const guestResumes = JSON.parse(localStorage.getItem('guest_resumes') || '[]');
-      const guestApps = JSON.parse(localStorage.getItem('guest_applications') || '[]');
-      setResumes(guestResumes);
-      setApplications(guestApps);
-      setHasGuestData(guestResumes.length > 0 || guestApps.length > 0);
-      setLoading(false);
-    }
-  }, [isAuthenticated]);
-
-  // ---- Load server data when authenticated ----
-  useEffect(() => {
-    if (isAuthenticated && accessToken) {
-      const fetchData = async () => {
-        setLoading(true);
+    const loadData = async () => {
+      setLoading(true);
+      if (isAuthenticated && accessToken) {
         try {
           const [resumesRes, appsRes] = await Promise.all([
             fetch(`${API_BASE}/resumes/`, {
@@ -38,29 +26,36 @@ export function useCVData() {
             }),
           ]);
           if (resumesRes.ok && appsRes.ok) {
-            const resumesData = await resumesRes.json();
-            const appsData = await appsRes.json();
-            setResumes(resumesData);
-            setApplications(appsData);
-            // Check for guest data that hasn't been migrated
-            const guestResumes = JSON.parse(localStorage.getItem('guest_resumes') || '[]');
-            const guestApps = JSON.parse(localStorage.getItem('guest_applications') || '[]');
-            setHasGuestData(guestResumes.length > 0 || guestApps.length > 0);
+            const r = await resumesRes.json();
+            const a = await appsRes.json();
+            setResumes(r);
+            setApplications(a);
+            // Check for guest data after migration
+            const guestR = JSON.parse(localStorage.getItem('guest_resumes') || '[]');
+            const guestA = JSON.parse(localStorage.getItem('guest_applications') || '[]');
+            setHasGuestData(guestR.length > 0 || guestA.length > 0);
           } else {
-            // Handle error
-            console.error('Failed to fetch server data');
+            console.error('Failed to fetch data');
           }
         } catch (e) {
           console.error(e);
-        } finally {
-          setLoading(false);
         }
-      };
-      fetchData();
-    }
-  }, [isAuthenticated, accessToken]); // Re-fetch when auth changes
+      } else {
+        // Not authenticated – load guest data
+        const guestR = JSON.parse(localStorage.getItem('guest_resumes') || '[]');
+        const guestA = JSON.parse(localStorage.getItem('guest_applications') || '[]');
+        setResumes(guestR);
+        setApplications(guestA);
+        setHasGuestData(guestR.length > 0 || guestA.length > 0);
+      }
+      setLoading(false);
+    };
+    loadData();
+  }, [isAuthenticated, accessToken]);
 
-  // ---- Create Resume ----
+  // Create functions (createResume, createApplication, migrateGuestData) remain the same as before.
+  // I'll include them below for completeness.
+
   const createResume = async (data) => {
     if (isAuthenticated) {
       const res = await fetch(`${API_BASE}/resumes/`, {
@@ -78,7 +73,6 @@ export function useCVData() {
         throw new Error('Failed to create resume');
       }
     } else {
-      // Guest mode – store in localStorage
       const guestResumes = JSON.parse(localStorage.getItem('guest_resumes') || '[]');
       const newResume = {
         ...data,
@@ -92,7 +86,6 @@ export function useCVData() {
     }
   };
 
-  // ---- Create Application ----
   const createApplication = async (data) => {
     if (isAuthenticated) {
       const res = await fetch(`${API_BASE}/applications/`, {
@@ -123,79 +116,54 @@ export function useCVData() {
     }
   };
 
-  // ---- Migrate Guest Data ----
   const migrateGuestData = async () => {
     if (!isAuthenticated) return;
-    const guestResumes = JSON.parse(localStorage.getItem('guest_resumes') || '[]');
-    const guestApps = JSON.parse(localStorage.getItem('guest_applications') || '[]');
-
-    if (guestResumes.length === 0 && guestApps.length === 0) {
+    const guestR = JSON.parse(localStorage.getItem('guest_resumes') || '[]');
+    const guestA = JSON.parse(localStorage.getItem('guest_applications') || '[]');
+    if (guestR.length === 0 && guestA.length === 0) {
       setHasGuestData(false);
       return;
     }
-
     try {
-      // Migrate resumes
-      for (const resume of guestResumes) {
-        const { id, created_at, ...resumeData } = resume;
+      for (const r of guestR) {
+        const { id, created_at, ...data } = r;
         await fetch(`${API_BASE}/resumes/`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${accessToken}`,
           },
-          body: JSON.stringify(resumeData),
+          body: JSON.stringify(data),
         });
       }
-      // Migrate applications
-      for (const app of guestApps) {
-        const { id, created_at, ...appData } = app;
+      for (const a of guestA) {
+        const { id, created_at, ...data } = a;
         await fetch(`${API_BASE}/applications/`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${accessToken}`,
           },
-          body: JSON.stringify(appData),
+          body: JSON.stringify(data),
         });
       }
-
-      // Clear guest data
       localStorage.removeItem('guest_resumes');
       localStorage.removeItem('guest_applications');
       setHasGuestData(false);
-
-      // Refresh server data to get the migrated items
-      const [resumesRes, appsRes] = await Promise.all([
-        fetch(`${API_BASE}/resumes/`, {
-          headers: { Authorization: `Bearer ${accessToken}` },
-        }),
-        fetch(`${API_BASE}/applications/`, {
-          headers: { Authorization: `Bearer ${accessToken}` },
-        }),
+      // Reload server data
+      const [rRes, aRes] = await Promise.all([
+        fetch(`${API_BASE}/resumes/`, { headers: { Authorization: `Bearer ${accessToken}` } }),
+        fetch(`${API_BASE}/applications/`, { headers: { Authorization: `Bearer ${accessToken}` } }),
       ]);
-      if (resumesRes.ok && appsRes.ok) {
-        setResumes(await resumesRes.json());
-        setApplications(await appsRes.json());
+      if (rRes.ok && aRes.ok) {
+        setResumes(await rRes.json());
+        setApplications(await aRes.json());
       }
     } catch (e) {
       console.error(e);
       throw new Error('Migration failed');
     }
   };
-
-  // ---- Reset data when user logs out ----
-  useEffect(() => {
-    if (!isAuthenticated) {
-      // When logged out, we load guest data (if any)
-      const guestResumes = JSON.parse(localStorage.getItem('guest_resumes') || '[]');
-      const guestApps = JSON.parse(localStorage.getItem('guest_applications') || '[]');
-      setResumes(guestResumes);
-      setApplications(guestApps);
-      setHasGuestData(guestResumes.length > 0 || guestApps.length > 0);
-      setLoading(false);
-    }
-  }, [isAuthenticated]);
 
   return {
     resumes,

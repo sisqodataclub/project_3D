@@ -2,8 +2,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
 const HVTContext = createContext();
-
-// ✅ Use your backend proxy endpoints – API key stays on the server
 const API_BASE = 'https://api.franciscodes.com/cv/api/auth';
 
 export const HVTProvider = ({ children }) => {
@@ -11,35 +9,15 @@ export const HVTProvider = ({ children }) => {
   const [accessToken, setAccessToken] = useState(localStorage.getItem('hvt_access') || null);
   const [refreshToken, setRefreshToken] = useState(localStorage.getItem('hvt_refresh') || null);
   const [loading, setLoading] = useState(true);
-  const [authLoading, setAuthLoading] = useState(true); // separate for auth
 
-  // Refresh token function
-  const refreshAccessToken = async () => {
-    if (!refreshToken) return null;
-    try {
-      const res = await fetch('https://api.franciscodes.com/cv/api/auth/token/refresh/', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refresh: refreshToken }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        const newAccess = data.access;
-        localStorage.setItem('hvt_access', newAccess);
-        setAccessToken(newAccess);
-        return newAccess;
-      } else {
-        // Refresh failed – logout
-        logout();
-        return null;
-      }
-    } catch {
-      logout();
-      return null;
-    }
+  const logout = () => {
+    localStorage.removeItem('hvt_access');
+    localStorage.removeItem('hvt_refresh');
+    setAccessToken(null);
+    setRefreshToken(null);
+    setUser(null);
   };
 
-  // Fetch user info with given token (and retry on 401 with refresh)
   const fetchUserInfo = async (token) => {
     try {
       const res = await fetch(`${API_BASE}/me/`, {
@@ -50,15 +28,22 @@ export const HVTProvider = ({ children }) => {
         setUser(data);
         return true;
       } else if (res.status === 401) {
-        // Token expired – try to refresh
-        const newToken = await refreshAccessToken();
-        if (newToken) {
-          // Retry with new token
-          return await fetchUserInfo(newToken);
-        } else {
-          logout();
-          return false;
+        // Try refresh
+        if (refreshToken) {
+          const refreshRes = await fetch(`${API_BASE}/token/refresh/`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ refresh: refreshToken }),
+          });
+          if (refreshRes.ok) {
+            const { access } = await refreshRes.json();
+            localStorage.setItem('hvt_access', access);
+            setAccessToken(access);
+            return await fetchUserInfo(access);
+          }
         }
+        logout();
+        return false;
       } else {
         logout();
         return false;
@@ -69,21 +54,16 @@ export const HVTProvider = ({ children }) => {
     }
   };
 
-  // On mount and when accessToken changes, fetch user
   useEffect(() => {
-    const initAuth = async () => {
-      setAuthLoading(true);
+    const init = async () => {
       if (accessToken) {
         await fetchUserInfo(accessToken);
-      } else {
-        setUser(null);
       }
-      setAuthLoading(false);
       setLoading(false);
     };
-    initAuth();
+    init();
     // eslint-disable-next-line
-  }, []); // only on mount
+  }, []);
 
   const login = async (email, password) => {
     const res = await fetch(`${API_BASE}/login/`, {
@@ -118,19 +98,11 @@ export const HVTProvider = ({ children }) => {
     return res.json();
   };
 
-  const logout = () => {
-    localStorage.removeItem('hvt_access');
-    localStorage.removeItem('hvt_refresh');
-    setAccessToken(null);
-    setRefreshToken(null);
-    setUser(null);
-  };
-
   const value = {
     user,
     accessToken,
     refreshToken,
-    loading: loading || authLoading,
+    loading,
     login,
     register,
     logout,
@@ -142,8 +114,6 @@ export const HVTProvider = ({ children }) => {
 
 export const useHVT = () => {
   const context = useContext(HVTContext);
-  if (!context) {
-    throw new Error('useHVT must be used within a HVTProvider');
-  }
+  if (!context) throw new Error('useHVT must be used within HVTProvider');
   return context;
 };
