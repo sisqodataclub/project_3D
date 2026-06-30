@@ -16,6 +16,7 @@ export function useCVData() {
     const loadData = async () => {
       setLoading(true);
       if (isAuthenticated && accessToken) {
+        // Authenticated: fetch server data, never show guest banner
         try {
           const [resumesRes, appsRes] = await Promise.all([
             fetch(`${API_BASE}/resumes/`, {
@@ -28,25 +29,23 @@ export function useCVData() {
           if (resumesRes.ok && appsRes.ok) {
             const resumesData = await resumesRes.json();
             const appsData = await appsRes.json();
-            // ✅ Extract results from paginated response
             setResumes(resumesData.results || []);
             setApplications(appsData.results || []);
-            // Check for guest data
-            const guestR = JSON.parse(localStorage.getItem('guest_resumes') || '[]');
-            const guestA = JSON.parse(localStorage.getItem('guest_applications') || '[]');
-            setHasGuestData(guestR.length > 0 || guestA.length > 0);
           } else {
-            console.error('Failed to fetch data');
+            console.error('Failed to fetch server data');
             setResumes([]);
             setApplications([]);
           }
+          // For authenticated users, we never show the guest banner
+          setHasGuestData(false);
         } catch (e) {
           console.error(e);
           setResumes([]);
           setApplications([]);
+          setHasGuestData(false);
         }
       } else {
-        // Not authenticated – load guest data
+        // Not authenticated: load guest data and show banner if any
         const guestR = JSON.parse(localStorage.getItem('guest_resumes') || '[]');
         const guestA = JSON.parse(localStorage.getItem('guest_applications') || '[]');
         setResumes(guestR);
@@ -120,15 +119,12 @@ export function useCVData() {
     }
   };
 
-  // ---- Migrate Guest Data ----
+  // ---- Migrate Guest Data (manual, not triggered by banner) ----
   const migrateGuestData = async () => {
     if (!isAuthenticated) return;
     const guestR = JSON.parse(localStorage.getItem('guest_resumes') || '[]');
     const guestA = JSON.parse(localStorage.getItem('guest_applications') || '[]');
-    if (guestR.length === 0 && guestA.length === 0) {
-      setHasGuestData(false);
-      return;
-    }
+    if (guestR.length === 0 && guestA.length === 0) return;
     try {
       for (const r of guestR) {
         const { id, created_at, ...data } = r;
@@ -154,8 +150,7 @@ export function useCVData() {
       }
       localStorage.removeItem('guest_resumes');
       localStorage.removeItem('guest_applications');
-      setHasGuestData(false);
-      // Reload server data
+      // Refresh server data
       const [rRes, aRes] = await Promise.all([
         fetch(`${API_BASE}/resumes/`, { headers: { Authorization: `Bearer ${accessToken}` } }),
         fetch(`${API_BASE}/applications/`, { headers: { Authorization: `Bearer ${accessToken}` } }),
