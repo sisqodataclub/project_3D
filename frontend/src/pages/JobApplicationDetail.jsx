@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useCVData } from '../hooks/useCVData';
+import { useHVT } from '../context/HVTContext';
 
 export default function JobApplicationDetail() {
   const { id } = useParams();
   const { fetchApplication } = useCVData();
+  const { isAuthenticated, loading: authLoading } = useHVT();
 
   const [app, setApp] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -12,24 +14,53 @@ export default function JobApplicationDetail() {
 
   useEffect(() => {
     const loadApplication = async () => {
+      // If auth is still initializing on refresh, wait
+      if (authLoading) return;
+
+      if (!isAuthenticated) {
+        setError('Please log in to view this application.');
+        setLoading(false);
+        return;
+      }
+
       try {
         const data = await fetchApplication(id);
         setApp(data);
-        setLoading(false);
+        setError(null);
       } catch (err) {
-        setError(err.message);
+        setError(err.message || 'Failed to load application.');
+      } finally {
         setLoading(false);
       }
     };
+    
     loadApplication();
-  }, [id, fetchApplication]);
+  }, [id, fetchApplication, isAuthenticated, authLoading]);
 
-  if (loading) {
-    return <div className="min-h-screen flex items-center justify-center bg-[#0b0e14] text-slate-100">Loading...</div>;
+  // Show loading while auth is restoring OR data is loading
+  if (authLoading || loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#0b0e14] text-slate-100">
+        Loading...
+      </div>
+    );
   }
 
-  if (error || !app) {
-    return <div className="min-h-screen flex items-center justify-center bg-[#0b0e14] text-red-400">{error || 'Not found'}</div>;
+  // If not authenticated (after auth loading is done), or error occurred
+  if (!isAuthenticated || error || !app) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#0b0e14] text-slate-100">
+        <div className="text-center">
+          <p className="text-red-400">{error || 'Application not found.'}</p>
+          <Link
+            to="/cv"
+            className="mt-4 inline-block px-4 py-2 bg-blue-600 rounded hover:bg-blue-700 transition"
+          >
+            Back to CV Manager
+          </Link>
+        </div>
+      </div>
+    );
   }
 
   const statusColors = {
