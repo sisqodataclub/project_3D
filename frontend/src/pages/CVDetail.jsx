@@ -39,15 +39,37 @@ export default function CVDetail() {
     fetchResume();
   }, [id, isAuthenticated, accessToken]);
 
-  // PDF download – uses backend endpoint
-  const downloadPDF = () => {
+  // ✅ PDF download – authenticated fetch + blob download
+  const downloadPDF = async () => {
     if (!isAuthenticated || !accessToken) {
       alert('Please log in to download PDF.');
       return;
     }
-    const url = `${API_BASE}/resumes/${id}/pdf/`;
-    // Open in new tab (the backend will stream the PDF)
-    window.open(url, '_blank');
+
+    try {
+      const response = await fetch(`${API_BASE}/resumes/${id}/pdf/`, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to download PDF');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${resume.full_name || 'resume'}_${id}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('PDF download failed:', error);
+      alert('Failed to download PDF. Please try again.');
+    }
   };
 
   // Helper to convert comma-separated strings to arrays
