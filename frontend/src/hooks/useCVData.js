@@ -1,197 +1,209 @@
+// src/hooks/useCVData.js
 import { useState, useEffect } from 'react';
-import { useHVT } from '../context/HVTContext'; // <-- changed from useAuth
-import * as cvService from '../services/cvService';
+import { useHVT } from '../context/HVTContext';
+
+const API_BASE = 'https://api.franciscodes.com/cv/api';
 
 export function useCVData() {
-  const { token, isAuthenticated } = useHVT(); // <-- changed from useAuth
-
+  const { isAuthenticated, accessToken, user } = useHVT();
   const [resumes, setResumes] = useState([]);
   const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [hasGuestData, setHasGuestData] = useState(false);
 
-  // Load data on mount or auth change
+  // ---- Load guest data when not authenticated ----
   useEffect(() => {
-    const loadData = async () => {
-      setLoading(true);
-      try {
-        if (isAuthenticated && token) {
-          const [resumesData, appsData] = await Promise.all([
-            cvService.apiFetchResumes(token),
-            cvService.apiFetchApplications(token)
+    if (!isAuthenticated) {
+      const guestResumes = JSON.parse(localStorage.getItem('guest_resumes') || '[]');
+      const guestApps = JSON.parse(localStorage.getItem('guest_applications') || '[]');
+      setResumes(guestResumes);
+      setApplications(guestApps);
+      setHasGuestData(guestResumes.length > 0 || guestApps.length > 0);
+      setLoading(false);
+    }
+  }, [isAuthenticated]);
+
+  // ---- Load server data when authenticated ----
+  useEffect(() => {
+    if (isAuthenticated && accessToken) {
+      const fetchData = async () => {
+        setLoading(true);
+        try {
+          const [resumesRes, appsRes] = await Promise.all([
+            fetch(`${API_BASE}/resumes/`, {
+              headers: { Authorization: `Bearer ${accessToken}` },
+            }),
+            fetch(`${API_BASE}/applications/`, {
+              headers: { Authorization: `Bearer ${accessToken}` },
+            }),
           ]);
-          setResumes(Array.isArray(resumesData) ? resumesData : []);
-          setApplications(Array.isArray(appsData) ? appsData : []);
-        } else {
-          setResumes(cvService.localGetResumes());
-          setApplications(cvService.localGetApplications());
+          if (resumesRes.ok && appsRes.ok) {
+            const resumesData = await resumesRes.json();
+            const appsData = await appsRes.json();
+            setResumes(resumesData);
+            setApplications(appsData);
+            // Check for guest data that hasn't been migrated
+            const guestResumes = JSON.parse(localStorage.getItem('guest_resumes') || '[]');
+            const guestApps = JSON.parse(localStorage.getItem('guest_applications') || '[]');
+            setHasGuestData(guestResumes.length > 0 || guestApps.length > 0);
+          } else {
+            // Handle error
+            console.error('Failed to fetch server data');
+          }
+        } catch (e) {
+          console.error(e);
+        } finally {
+          setLoading(false);
         }
-      } catch (err) {
-        setError(err.message);
-        console.error('Error loading data:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
+      };
+      fetchData();
+    }
+  }, [isAuthenticated, accessToken]); // Re-fetch when auth changes
 
-    loadData();
-  }, [isAuthenticated, token]);
-
-  // ---- Resume CRUD ----
+  // ---- Create Resume ----
   const createResume = async (data) => {
-    try {
-      if (isAuthenticated && token) {
-        const newResume = await cvService.apiCreateResume(data, token);
-        setResumes(prev => [...prev, newResume]);
-        return newResume;
+    if (isAuthenticated) {
+      const res = await fetch(`${API_BASE}/resumes/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify(data),
+      });
+      if (res.ok) {
+        const newResume = await res.json();
+        setResumes((prev) => [...prev, newResume]);
       } else {
-        const newResume = { 
-          ...data, 
-          id: cvService.genLocalId(), 
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        };
-        const updated = [...resumes, newResume];
-        setResumes(updated);
-        cvService.localSetResumes(updated);
-        return newResume;
+        throw new Error('Failed to create resume');
       }
-    } catch (err) {
-      setError(err.message);
-      throw err;
+    } else {
+      // Guest mode – store in localStorage
+      const guestResumes = JSON.parse(localStorage.getItem('guest_resumes') || '[]');
+      const newResume = {
+        ...data,
+        id: `guest_${Date.now()}`,
+        created_at: new Date().toISOString(),
+      };
+      guestResumes.push(newResume);
+      localStorage.setItem('guest_resumes', JSON.stringify(guestResumes));
+      setResumes(guestResumes);
+      setHasGuestData(true);
     }
   };
 
-  const updateResume = async (id, data) => {
-    try {
-      if (isAuthenticated && token) {
-        const updated = await cvService.apiUpdateResume(id, data, token);
-        setResumes(prev => prev.map(r => r.id === id ? updated : r));
-        return updated;
-      } else {
-        const updatedList = resumes.map(r => 
-          r.id === id ? { ...r, ...data, updated_at: new Date().toISOString() } : r
-        );
-        setResumes(updatedList);
-        cvService.localSetResumes(updatedList);
-        return updatedList.find(r => r.id === id);
-      }
-    } catch (err) {
-      setError(err.message);
-      throw err;
-    }
-  };
-
-  const deleteResume = async (id) => {
-    try {
-      if (isAuthenticated && token) {
-        await cvService.apiDeleteResume(id, token);
-        setResumes(prev => prev.filter(r => r.id !== id));
-      } else {
-        const updated = resumes.filter(r => r.id !== id);
-        setResumes(updated);
-        cvService.localSetResumes(updated);
-      }
-    } catch (err) {
-      setError(err.message);
-      throw err;
-    }
-  };
-
-  const fetchResume = async (id) => {
-    try {
-      if (isAuthenticated && token) {
-        return await cvService.apiFetchResume(id, token);
-      } else {
-        return resumes.find(r => r.id === id) || null;
-      }
-    } catch (err) {
-      setError(err.message);
-      throw err;
-    }
-  };
-
-  // ---- Application CRUD ----
+  // ---- Create Application ----
   const createApplication = async (data) => {
-    try {
-      if (isAuthenticated && token) {
-        const newApp = await cvService.apiCreateApplication(data, token);
-        setApplications(prev => [...prev, newApp]);
-        return newApp;
+    if (isAuthenticated) {
+      const res = await fetch(`${API_BASE}/applications/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify(data),
+      });
+      if (res.ok) {
+        const newApp = await res.json();
+        setApplications((prev) => [...prev, newApp]);
       } else {
-        const newApp = { 
-          ...data, 
-          id: cvService.genLocalId(), 
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        };
-        const updated = [...applications, newApp];
-        setApplications(updated);
-        cvService.localSetApplications(updated);
-        return newApp;
+        throw new Error('Failed to create application');
       }
-    } catch (err) {
-      setError(err.message);
-      throw err;
+    } else {
+      const guestApps = JSON.parse(localStorage.getItem('guest_applications') || '[]');
+      const newApp = {
+        ...data,
+        id: `guest_${Date.now()}`,
+        created_at: new Date().toISOString(),
+      };
+      guestApps.push(newApp);
+      localStorage.setItem('guest_applications', JSON.stringify(guestApps));
+      setApplications(guestApps);
+      setHasGuestData(true);
     }
   };
 
-  const fetchApplication = async (id) => {
-    try {
-      if (isAuthenticated && token) {
-        return await cvService.apiFetchApplication(id, token);
-      } else {
-        return applications.find(a => a.id === id) || null;
-      }
-    } catch (err) {
-      setError(err.message);
-      throw err;
-    }
-  };
-
-  // ---- Migration ----
+  // ---- Migrate Guest Data ----
   const migrateGuestData = async () => {
-    if (!isAuthenticated || !token) return;
+    if (!isAuthenticated) return;
+    const guestResumes = JSON.parse(localStorage.getItem('guest_resumes') || '[]');
+    const guestApps = JSON.parse(localStorage.getItem('guest_applications') || '[]');
+
+    if (guestResumes.length === 0 && guestApps.length === 0) {
+      setHasGuestData(false);
+      return;
+    }
 
     try {
-      // Upload local resumes
-      for (const resume of resumes) {
-        const { id, created_at, updated_at, ...cleanData } = resume;
-        await cvService.apiCreateResume(cleanData, token);
+      // Migrate resumes
+      for (const resume of guestResumes) {
+        const { id, created_at, ...resumeData } = resume;
+        await fetch(`${API_BASE}/resumes/`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify(resumeData),
+        });
       }
-      // Upload local applications
-      for (const app of applications) {
-        const { id, created_at, updated_at, ...cleanData } = app;
-        await cvService.apiCreateApplication(cleanData, token);
+      // Migrate applications
+      for (const app of guestApps) {
+        const { id, created_at, ...appData } = app;
+        await fetch(`${API_BASE}/applications/`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify(appData),
+        });
       }
-      // Clear local storage
-      cvService.clearGuestData();
-      // Reload server data
-      const [resumesData, appsData] = await Promise.all([
-        cvService.apiFetchResumes(token),
-        cvService.apiFetchApplications(token)
+
+      // Clear guest data
+      localStorage.removeItem('guest_resumes');
+      localStorage.removeItem('guest_applications');
+      setHasGuestData(false);
+
+      // Refresh server data to get the migrated items
+      const [resumesRes, appsRes] = await Promise.all([
+        fetch(`${API_BASE}/resumes/`, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        }),
+        fetch(`${API_BASE}/applications/`, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        }),
       ]);
-      setResumes(resumesData);
-      setApplications(appsData);
-    } catch (err) {
-      setError(err.message);
-      throw err;
+      if (resumesRes.ok && appsRes.ok) {
+        setResumes(await resumesRes.json());
+        setApplications(await appsRes.json());
+      }
+    } catch (e) {
+      console.error(e);
+      throw new Error('Migration failed');
     }
   };
+
+  // ---- Reset data when user logs out ----
+  useEffect(() => {
+    if (!isAuthenticated) {
+      // When logged out, we load guest data (if any)
+      const guestResumes = JSON.parse(localStorage.getItem('guest_resumes') || '[]');
+      const guestApps = JSON.parse(localStorage.getItem('guest_applications') || '[]');
+      setResumes(guestResumes);
+      setApplications(guestApps);
+      setHasGuestData(guestResumes.length > 0 || guestApps.length > 0);
+      setLoading(false);
+    }
+  }, [isAuthenticated]);
 
   return {
     resumes,
     applications,
     loading,
-    error,
     createResume,
-    updateResume,
-    deleteResume,
-    fetchResume,
     createApplication,
-    fetchApplication,
     migrateGuestData,
-    isAuthenticated,
-    hasGuestData: resumes.length > 0 || applications.length > 0
+    hasGuestData,
   };
 }
