@@ -6,25 +6,33 @@ const API_BASE = 'https://api.franciscodes.com/cv/api';
 
 export default function CVDetail() {
   const { id } = useParams();
-  const { accessToken, isAuthenticated } = useHVT();
+  const { accessToken, isAuthenticated, loading: authLoading } = useHVT();
+  
   const [resume, setResume] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // Fetch resume data – only runs when auth is ready and user is authenticated
   useEffect(() => {
     const fetchResume = async () => {
+      // If auth is still loading, wait
+      if (authLoading) return;
+
       if (!isAuthenticated || !accessToken) {
         setError('Please log in to view this resume.');
         setLoading(false);
         return;
       }
+
       try {
         const res = await fetch(`${API_BASE}/resumes/${id}/`, {
           headers: { Authorization: `Bearer ${accessToken}` },
         });
+
         if (res.ok) {
           const data = await res.json();
           setResume(data);
+          setError(null);
         } else if (res.status === 404) {
           setError('Resume not found.');
         } else {
@@ -36,10 +44,11 @@ export default function CVDetail() {
         setLoading(false);
       }
     };
-    fetchResume();
-  }, [id, isAuthenticated, accessToken]);
 
-  // ✅ PDF download – authenticated fetch + blob download
+    fetchResume();
+  }, [id, isAuthenticated, accessToken, authLoading]);
+
+  // PDF download – authenticated fetch + blob download
   const downloadPDF = async () => {
     if (!isAuthenticated || !accessToken) {
       alert('Please log in to download PDF.');
@@ -48,20 +57,17 @@ export default function CVDetail() {
 
     try {
       const response = await fetch(`${API_BASE}/resumes/${id}/pdf/`, {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-        },
+        headers: { Authorization: `Bearer ${accessToken}` },
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to download PDF');
-      }
+      if (!response.ok) throw new Error('Failed to download PDF');
 
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
+      
       const link = document.createElement('a');
       link.href = url;
-      link.download = `${resume.full_name || 'resume'}_${id}.pdf`;
+      link.download = `${resume?.full_name || 'resume'}_${id}.pdf`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -78,7 +84,8 @@ export default function CVDetail() {
       ? str.split(',').map((s) => s.trim()).filter(Boolean)
       : [];
 
-  if (loading) {
+  // Show loading while auth is restoring OR data is loading
+  if (authLoading || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#0b0e14] text-slate-100">
         Loading...
@@ -86,11 +93,12 @@ export default function CVDetail() {
     );
   }
 
-  if (error || !resume) {
+  // If not authenticated (after auth loading is done), show login prompt
+  if (!isAuthenticated || error) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#0b0e14] text-slate-100">
         <div>
-          <p className="text-red-400">{error || 'Resume not found'}</p>
+          <p className="text-red-400">{error || 'Please log in to view this resume.'}</p>
           <Link
             to="/cv"
             className="mt-4 inline-block px-4 py-2 bg-blue-600 rounded hover:bg-blue-700"
@@ -98,6 +106,14 @@ export default function CVDetail() {
             Back to CV Manager
           </Link>
         </div>
+      </div>
+    );
+  }
+
+  if (!resume) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#0b0e14] text-slate-100">
+        <p>No resume data found.</p>
       </div>
     );
   }
@@ -127,7 +143,7 @@ export default function CVDetail() {
             Download PDF
           </button>
         </div>
-
+        
         <div className="bg-gray-900 rounded-2xl shadow-2xl overflow-hidden border border-gray-800">
           <div className="bg-gradient-to-r from-blue-800 to-purple-800 px-8 py-10">
             <h1 className="text-4xl font-bold text-white">{resume.full_name}</h1>
@@ -164,7 +180,7 @@ export default function CVDetail() {
               )}
             </div>
           </div>
-
+          
           <div className="p-8 space-y-8">
             {skillsList.length > 0 && (
               <Section title="Skills">
@@ -180,7 +196,6 @@ export default function CVDetail() {
                 </div>
               </Section>
             )}
-
             {languagesList.length > 0 && (
               <Section title="Languages">
                 <div className="flex flex-wrap gap-2">
@@ -195,7 +210,6 @@ export default function CVDetail() {
                 </div>
               </Section>
             )}
-
             {[resume.education1, resume.education2, resume.education3].filter(Boolean).length > 0 && (
               <Section title="Education">
                 <ul className="list-disc list-inside space-y-1 text-gray-300">
@@ -207,7 +221,6 @@ export default function CVDetail() {
                 </ul>
               </Section>
             )}
-
             {[resume.project1, resume.project2].filter(Boolean).length > 0 && (
               <Section title="Projects">
                 <ul className="list-disc list-inside space-y-1 text-gray-300">
@@ -219,7 +232,6 @@ export default function CVDetail() {
                 </ul>
               </Section>
             )}
-
             {[resume.experience1, resume.experience2].filter(Boolean).length > 0 && (
               <Section title="Experience">
                 <ul className="list-disc list-inside space-y-1 text-gray-300">
@@ -231,7 +243,6 @@ export default function CVDetail() {
                 </ul>
               </Section>
             )}
-
             {achievementsList.length > 0 && (
               <Section title="Achievements">
                 <ul className="list-disc list-inside space-y-1 text-gray-300">
@@ -241,7 +252,6 @@ export default function CVDetail() {
                 </ul>
               </Section>
             )}
-
             <div className="text-xs text-gray-500 pt-4 border-t border-gray-700">
               Created: {new Date(resume.created_at).toLocaleDateString()} &middot;
               Updated: {new Date(resume.updated_at).toLocaleDateString()}
