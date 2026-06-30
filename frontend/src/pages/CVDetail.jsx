@@ -1,16 +1,24 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useHVT } from '../context/HVTContext';
+import { useCVData } from '../hooks/useCVData';
 
 const API_BASE = 'https://api.franciscodes.com/cv/api';
 
 export default function CVDetail() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const { accessToken, isAuthenticated, loading: authLoading } = useHVT();
+  const { updateResume } = useCVData();
+
   const [resume, setResume] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editData, setEditData] = useState(null);
+  const [saveLoading, setSaveLoading] = useState(false);
 
+  // Fetch resume data
   useEffect(() => {
     const fetchResume = async () => {
       if (authLoading) return;
@@ -26,6 +34,7 @@ export default function CVDetail() {
         if (res.ok) {
           const data = await res.json();
           setResume(data);
+          setEditData(data); // initialise edit data
         } else if (res.status === 404) {
           setError('Resume not found.');
         } else {
@@ -40,6 +49,109 @@ export default function CVDetail() {
     fetchResume();
   }, [id, isAuthenticated, accessToken, authLoading]);
 
+  // ---- Edit Mode Handlers ----
+  const enableEditing = () => {
+    setEditData(JSON.parse(JSON.stringify(resume))); // deep copy
+    setIsEditing(true);
+  };
+
+  const cancelEditing = () => {
+    setIsEditing(false);
+    setEditData(null);
+  };
+
+  // Update a field in editData
+  const handleFieldChange = (field, value) => {
+    setEditData({ ...editData, [field]: value });
+  };
+
+  // Update a nested item field
+  const handleNestedChange = (section, index, field, value) => {
+    const updated = [...editData[section]];
+    updated[index][field] = value;
+    setEditData({ ...editData, [section]: updated });
+  };
+
+  // Add a new empty item to a section
+  const addItem = (section, emptyItem) => {
+    setEditData({
+      ...editData,
+      [section]: [...editData[section], emptyItem],
+    });
+  };
+
+  // Remove an item from a section
+  const removeItem = (section, index) => {
+    if (editData[section].length <= 1) return;
+    const updated = [...editData[section]];
+    updated.splice(index, 1);
+    setEditData({ ...editData, [section]: updated });
+  };
+
+  // Reorder items (swap order values)
+  const moveItem = (section, index, direction) => {
+    const items = [...editData[section]];
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= items.length) return;
+    // Swap the order values
+    const temp = items[index].order;
+    items[index].order = items[targetIndex].order;
+    items[targetIndex].order = temp;
+    // Also swap positions in the array (for UI)
+    [items[index], items[targetIndex]] = [items[targetIndex], items[index]];
+    setEditData({ ...editData, [section]: items });
+  };
+
+  // Save changes
+  const handleSave = async () => {
+    setSaveLoading(true);
+    try {
+      // Filter out empty items (same as CVManager)
+      const filterValid = (items, requiredFields) => {
+        return items
+          .filter(item => {
+            const hasAnyData = Object.values(item).some(v => v && v.toString().trim() !== '');
+            if (!hasAnyData) return false;
+            const missing = requiredFields.filter(f => !item[f] || item[f].toString().trim() === '');
+            return missing.length === 0;
+          })
+          .map(item => {
+            const cleaned = { ...item };
+            Object.keys(cleaned).forEach(key => {
+              if (key.includes('date') || key === 'url') {
+                cleaned[key] = cleaned[key] || null;
+              }
+            });
+            return cleaned;
+          });
+      };
+
+      const payload = {
+        full_name: editData.full_name,
+        about: editData.about,
+        email: editData.email,
+        phone: editData.phone,
+        age: editData.age || null,
+        educations: filterValid(editData.educations, ['institution']),
+        experiences: filterValid(editData.experiences, ['company']),
+        projects: filterValid(editData.projects, ['name']),
+        skills: filterValid(editData.skills, ['name']),
+        languages: filterValid(editData.languages, ['name']),
+        achievements: filterValid(editData.achievements, ['description']),
+      };
+
+      const updated = await updateResume(id, payload);
+      setResume(updated);
+      setEditData(updated);
+      setIsEditing(false);
+    } catch (err) {
+      alert('Error updating resume: ' + err.message);
+    } finally {
+      setSaveLoading(false);
+    }
+  };
+
+  // ---- PDF Download (unchanged) ----
   const downloadPDF = async () => {
     if (!isAuthenticated || !accessToken) {
       alert('Please log in to download PDF.');
@@ -65,6 +177,7 @@ export default function CVDetail() {
     }
   };
 
+  // ---- Loading / Error states ----
   if (authLoading || loading) {
     return <div className="min-h-screen flex items-center justify-center bg-[#0b0e14] text-slate-100">Loading...</div>;
   }
@@ -84,116 +197,213 @@ export default function CVDetail() {
     return <div className="min-h-screen flex items-center justify-center bg-[#0b0e14] text-slate-100"><p>No resume data found.</p></div>;
   }
 
+  // ---- Render display mode ----
+  if (!isEditing) {
+    return (
+      <div className="min-h-screen bg-[#0b0e14] text-slate-100 py-10 px-4">
+        <div className="max-w-4xl mx-auto">
+          <div className="flex justify-between items-center mb-6">
+            <Link to="/cv" className="text-blue-400 hover:text-blue-300 transition">← Back to CV Manager</Link>
+            <div className="flex gap-3">
+              <button onClick={enableEditing} className="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 rounded-lg font-semibold transition flex items-center gap-2">
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" /></svg>
+                Edit
+              </button>
+              <button onClick={downloadPDF} className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg font-semibold transition flex items-center gap-2">
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V7l-5-5H6zm8 13a1 1 0 01-1 1H7a1 1 0 01-1-1v-1a1 1 0 011-1h6a1 1 0 011 1v1zm-3-8V3.5L13.5 7H11z" clipRule="evenodd" /></svg>
+                Download PDF
+              </button>
+            </div>
+          </div>
+
+          {/* Display view (unchanged from previous) */}
+          <div className="bg-gray-900 rounded-2xl shadow-2xl overflow-hidden border border-gray-800">
+            <div className="bg-gradient-to-r from-blue-800 to-purple-800 px-8 py-10">
+              <h1 className="text-4xl font-bold text-white">{resume.full_name}</h1>
+              <p className="text-blue-200 text-lg mt-1">{resume.about}</p>
+              <div className="flex flex-wrap gap-6 mt-4 text-sm text-blue-100">
+                {resume.email && <span>📧 {resume.email}</span>}
+                {resume.phone && <span>📞 {resume.phone}</span>}
+                {resume.age && <span>🎂 {resume.age} years</span>}
+              </div>
+            </div>
+
+            <div className="p-8 space-y-8">
+              {resume.educations?.length > 0 && (
+                <Section title="Education">
+                  <ul className="list-disc list-inside space-y-1 text-gray-300">
+                    {resume.educations.map((edu) => (
+                      <li key={edu.id}>
+                        {edu.institution} {edu.degree && `– ${edu.degree}`} {edu.field_of_study && `(${edu.field_of_study})`}
+                        {edu.start_date && ` (${edu.start_date}${edu.end_date ? ` - ${edu.end_date}` : ''})`}
+                        {edu.description && <p className="ml-6 text-sm text-gray-400">{edu.description}</p>}
+                      </li>
+                    ))}
+                  </ul>
+                </Section>
+              )}
+
+              {resume.experiences?.length > 0 && (
+                <Section title="Experience">
+                  <ul className="list-disc list-inside space-y-1 text-gray-300">
+                    {resume.experiences.map((exp) => (
+                      <li key={exp.id}>
+                        {exp.position} at {exp.company} {exp.location && `(${exp.location})`}
+                        {exp.start_date && ` (${exp.start_date}${exp.end_date ? ` - ${exp.end_date}` : ''})`}
+                        {exp.description && <p className="ml-6 text-sm text-gray-400">{exp.description}</p>}
+                      </li>
+                    ))}
+                  </ul>
+                </Section>
+              )}
+
+              {resume.projects?.length > 0 && (
+                <Section title="Projects">
+                  <ul className="list-disc list-inside space-y-1 text-gray-300">
+                    {resume.projects.map((proj) => (
+                      <li key={proj.id}>
+                        {proj.name} {proj.url && <a href={proj.url} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">🔗</a>}
+                        {proj.start_date && ` (${proj.start_date}${proj.end_date ? ` - ${proj.end_date}` : ''})`}
+                        {proj.description && <p className="ml-6 text-sm text-gray-400">{proj.description}</p>}
+                      </li>
+                    ))}
+                  </ul>
+                </Section>
+              )}
+
+              {resume.skills?.length > 0 && (
+                <Section title="Skills">
+                  <div className="flex flex-wrap gap-2">
+                    {resume.skills.map((skill) => (
+                      <span key={skill.id} className="px-3 py-1 bg-blue-900/50 text-blue-300 rounded-full text-sm">
+                        {skill.name} {skill.proficiency && `(${skill.proficiency})`}
+                      </span>
+                    ))}
+                  </div>
+                </Section>
+              )}
+
+              {resume.languages?.length > 0 && (
+                <Section title="Languages">
+                  <div className="flex flex-wrap gap-2">
+                    {resume.languages.map((lang) => (
+                      <span key={lang.id} className="px-3 py-1 bg-purple-900/50 text-purple-300 rounded-full text-sm">
+                        {lang.name} {lang.proficiency && `(${lang.proficiency})`}
+                      </span>
+                    ))}
+                  </div>
+                </Section>
+              )}
+
+              {resume.achievements?.length > 0 && (
+                <Section title="Achievements">
+                  <ul className="list-disc list-inside space-y-1 text-gray-300">
+                    {resume.achievements.map((ach) => (
+                      <li key={ach.id}>{ach.description}</li>
+                    ))}
+                  </ul>
+                </Section>
+              )}
+
+              <div className="text-xs text-gray-500 pt-4 border-t border-gray-700">
+                Created: {new Date(resume.created_at).toLocaleDateString()} · Updated: {new Date(resume.updated_at).toLocaleDateString()}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ---- Edit mode ----
   return (
     <div className="min-h-screen bg-[#0b0e14] text-slate-100 py-10 px-4">
       <div className="max-w-4xl mx-auto">
         <div className="flex justify-between items-center mb-6">
           <Link to="/cv" className="text-blue-400 hover:text-blue-300 transition">← Back to CV Manager</Link>
-          <button onClick={downloadPDF} className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg font-semibold transition flex items-center gap-2">
-            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V7l-5-5H6zm8 13a1 1 0 01-1 1H7a1 1 0 01-1-1v-1a1 1 0 011-1h6a1 1 0 011 1v1zm-3-8V3.5L13.5 7H11z" clipRule="evenodd" /></svg>
-            Download PDF
-          </button>
-        </div>
-
-        <div className="bg-gray-900 rounded-2xl shadow-2xl overflow-hidden border border-gray-800">
-          <div className="bg-gradient-to-r from-blue-800 to-purple-800 px-8 py-10">
-            <h1 className="text-4xl font-bold text-white">{resume.full_name}</h1>
-            <p className="text-blue-200 text-lg mt-1">{resume.about}</p>
-            <div className="flex flex-wrap gap-6 mt-4 text-sm text-blue-100">
-              {resume.email && <span className="flex items-center gap-1">📧 {resume.email}</span>}
-              {resume.phone && <span className="flex items-center gap-1">📞 {resume.phone}</span>}
-              {resume.age && <span className="flex items-center gap-1">🎂 {resume.age} years</span>}
-            </div>
-          </div>
-
-          <div className="p-8 space-y-8">
-            {/* Educations */}
-            {resume.educations?.length > 0 && (
-              <Section title="Education">
-                <ul className="list-disc list-inside space-y-1 text-gray-300">
-                  {resume.educations.map((edu) => (
-                    <li key={edu.id}>
-                      {edu.institution} {edu.degree && `– ${edu.degree}`} {edu.field_of_study && `(${edu.field_of_study})`}
-                      {edu.start_date && ` (${edu.start_date}${edu.end_date ? ` - ${edu.end_date}` : ''})`}
-                      {edu.description && <p className="ml-6 text-sm text-gray-400">{edu.description}</p>}
-                    </li>
-                  ))}
-                </ul>
-              </Section>
-            )}
-
-            {/* Experiences */}
-            {resume.experiences?.length > 0 && (
-              <Section title="Experience">
-                <ul className="list-disc list-inside space-y-1 text-gray-300">
-                  {resume.experiences.map((exp) => (
-                    <li key={exp.id}>
-                      {exp.position} at {exp.company} {exp.location && `(${exp.location})`}
-                      {exp.start_date && ` (${exp.start_date}${exp.end_date ? ` - ${exp.end_date}` : ''})`}
-                      {exp.description && <p className="ml-6 text-sm text-gray-400">{exp.description}</p>}
-                    </li>
-                  ))}
-                </ul>
-              </Section>
-            )}
-
-            {/* Projects */}
-            {resume.projects?.length > 0 && (
-              <Section title="Projects">
-                <ul className="list-disc list-inside space-y-1 text-gray-300">
-                  {resume.projects.map((proj) => (
-                    <li key={proj.id}>
-                      {proj.name} {proj.url && <a href={proj.url} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">🔗</a>}
-                      {proj.start_date && ` (${proj.start_date}${proj.end_date ? ` - ${proj.end_date}` : ''})`}
-                      {proj.description && <p className="ml-6 text-sm text-gray-400">{proj.description}</p>}
-                    </li>
-                  ))}
-                </ul>
-              </Section>
-            )}
-
-            {/* Skills */}
-            {resume.skills?.length > 0 && (
-              <Section title="Skills">
-                <div className="flex flex-wrap gap-2">
-                  {resume.skills.map((skill) => (
-                    <span key={skill.id} className="px-3 py-1 bg-blue-900/50 text-blue-300 rounded-full text-sm">
-                      {skill.name} {skill.proficiency && `(${skill.proficiency})`}
-                    </span>
-                  ))}
-                </div>
-              </Section>
-            )}
-
-            {/* Languages */}
-            {resume.languages?.length > 0 && (
-              <Section title="Languages">
-                <div className="flex flex-wrap gap-2">
-                  {resume.languages.map((lang) => (
-                    <span key={lang.id} className="px-3 py-1 bg-purple-900/50 text-purple-300 rounded-full text-sm">
-                      {lang.name} {lang.proficiency && `(${lang.proficiency})`}
-                    </span>
-                  ))}
-                </div>
-              </Section>
-            )}
-
-            {/* Achievements */}
-            {resume.achievements?.length > 0 && (
-              <Section title="Achievements">
-                <ul className="list-disc list-inside space-y-1 text-gray-300">
-                  {resume.achievements.map((ach) => (
-                    <li key={ach.id}>{ach.description}</li>
-                  ))}
-                </ul>
-              </Section>
-            )}
-
-            <div className="text-xs text-gray-500 pt-4 border-t border-gray-700">
-              Created: {new Date(resume.created_at).toLocaleDateString()} &middot; Updated: {new Date(resume.updated_at).toLocaleDateString()}
-            </div>
+          <div className="flex gap-3">
+            <button onClick={cancelEditing} className="px-4 py-2 bg-gray-600 hover:bg-gray-700 rounded-lg font-semibold transition">Cancel</button>
+            <button onClick={handleSave} disabled={saveLoading} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded-lg font-semibold transition">
+              {saveLoading ? 'Saving...' : 'Save Changes'}
+            </button>
           </div>
         </div>
+
+        <form onSubmit={(e) => { e.preventDefault(); handleSave(); }} className="bg-gray-900 p-6 rounded-2xl shadow-2xl border border-gray-800 space-y-6">
+          {/* Basic Info */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div><label className="block text-sm font-medium mb-1">Full Name *</label><input type="text" value={editData.full_name || ''} onChange={(e) => handleFieldChange('full_name', e.target.value)} className="w-full p-2 bg-gray-700 rounded border border-gray-600" required /></div>
+            <div><label className="block text-sm font-medium mb-1">About *</label><textarea rows="2" value={editData.about || ''} onChange={(e) => handleFieldChange('about', e.target.value)} className="w-full p-2 bg-gray-700 rounded border border-gray-600" required /></div>
+            <div><label className="block text-sm font-medium mb-1">Email *</label><input type="email" value={editData.email || ''} onChange={(e) => handleFieldChange('email', e.target.value)} className="w-full p-2 bg-gray-700 rounded border border-gray-600" required /></div>
+            <div><label className="block text-sm font-medium mb-1">Phone *</label><input type="text" value={editData.phone || ''} onChange={(e) => handleFieldChange('phone', e.target.value)} className="w-full p-2 bg-gray-700 rounded border border-gray-600" required /></div>
+            <div><label className="block text-sm font-medium mb-1">Age</label><input type="number" value={editData.age || ''} onChange={(e) => handleFieldChange('age', e.target.value)} className="w-full p-2 bg-gray-700 rounded border border-gray-600" /></div>
+          </div>
+
+          {/* Dynamic Sections */}
+          {['educations', 'experiences', 'projects', 'skills', 'languages', 'achievements'].map((section) => {
+            const label = section.charAt(0).toUpperCase() + section.slice(1);
+            const items = editData[section] || [];
+            const emptyItem = {
+              educations: { institution: '', degree: '', field_of_study: '', start_date: '', end_date: '', description: '', order: items.length },
+              experiences: { company: '', position: '', start_date: '', end_date: '', description: '', location: '', order: items.length },
+              projects: { name: '', description: '', url: '', start_date: '', end_date: '', order: items.length },
+              skills: { name: '', proficiency: '', order: items.length },
+              languages: { name: '', proficiency: '', order: items.length },
+              achievements: { description: '', order: items.length },
+            }[section];
+
+            const requiredFields = {
+              educations: ['institution'],
+              experiences: ['company'],
+              projects: ['name'],
+              skills: ['name'],
+              languages: ['name'],
+              achievements: ['description'],
+            }[section];
+
+            return (
+              <div key={section} className="border border-gray-700 p-4 rounded">
+                <div className="flex justify-between items-center mb-2">
+                  <h3 className="text-lg font-medium">{label} <span className="text-xs text-gray-400">(required: {requiredFields.join(', ')})</span></h3>
+                  <button type="button" onClick={() => addItem(section, { ...emptyItem, order: items.length })} className="text-sm text-blue-400 hover:text-blue-300">+ Add {label.slice(0, -1)}</button>
+                </div>
+                {items.map((item, idx) => (
+                  <div key={idx} className="flex gap-2 items-start mb-2">
+                    <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-2">
+                      {Object.keys(item).filter(key => key !== 'id' && key !== 'order').map((key) => {
+                        const isRequired = requiredFields.includes(key);
+                        let inputType = 'text';
+                        if (key.includes('date')) inputType = 'date';
+                        if (key === 'url') inputType = 'url';
+                        return (
+                          <div key={key} className="relative">
+                            <input
+                              type={inputType}
+                              placeholder={`${key.replace(/_/g, ' ')}${isRequired ? ' *' : ''}`}
+                              value={item[key] || ''}
+                              onChange={(e) => handleNestedChange(section, idx, key, e.target.value)}
+                              className={`w-full p-1 bg-gray-700 rounded border ${isRequired ? 'border-blue-500' : 'border-gray-600'} text-sm`}
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <button type="button" onClick={() => moveItem(section, idx, 'up')} className="text-gray-400 hover:text-white text-sm" disabled={idx === 0}>↑</button>
+                      <button type="button" onClick={() => moveItem(section, idx, 'down')} className="text-gray-400 hover:text-white text-sm" disabled={idx === items.length - 1}>↓</button>
+                      <button type="button" onClick={() => removeItem(section, idx)} className="text-red-400 hover:text-red-300 text-sm">✕</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            );
+          })}
+
+          <div className="flex justify-end gap-3">
+            <button type="button" onClick={cancelEditing} className="px-4 py-2 bg-gray-600 hover:bg-gray-700 rounded-lg">Cancel</button>
+            <button type="submit" disabled={saveLoading} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded-lg font-semibold">Save Changes</button>
+          </div>
+        </form>
       </div>
     </div>
   );

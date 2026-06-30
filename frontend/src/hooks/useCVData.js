@@ -16,7 +16,6 @@ export function useCVData() {
     const loadData = async () => {
       setLoading(true);
       if (isAuthenticated && accessToken) {
-        // Authenticated: fetch server data, never show guest banner
         try {
           const [resumesRes, appsRes] = await Promise.all([
             fetch(`${API_BASE}/resumes/`, {
@@ -36,7 +35,6 @@ export function useCVData() {
             setResumes([]);
             setApplications([]);
           }
-          // For authenticated users, we never show the guest banner
           setHasGuestData(false);
         } catch (e) {
           console.error(e);
@@ -45,7 +43,6 @@ export function useCVData() {
           setHasGuestData(false);
         }
       } else {
-        // Not authenticated: load guest data and show banner if any
         const guestR = JSON.parse(localStorage.getItem('guest_resumes') || '[]');
         const guestA = JSON.parse(localStorage.getItem('guest_applications') || '[]');
         setResumes(guestR);
@@ -71,8 +68,10 @@ export function useCVData() {
       if (res.ok) {
         const newResume = await res.json();
         setResumes((prev) => [...prev, newResume]);
+        return newResume;
       } else {
-        throw new Error('Failed to create resume');
+        const error = await res.json();
+        throw new Error(error.detail || 'Failed to create resume');
       }
     } else {
       const guestResumes = JSON.parse(localStorage.getItem('guest_resumes') || '[]');
@@ -85,7 +84,44 @@ export function useCVData() {
       localStorage.setItem('guest_resumes', JSON.stringify(guestResumes));
       setResumes(guestResumes);
       setHasGuestData(true);
+      return newResume;
     }
+  };
+
+  // ---- Update Resume ----
+  const updateResume = async (id, data) => {
+    if (!isAuthenticated) throw new Error('Not authenticated');
+    const res = await fetch(`${API_BASE}/resumes/${id}/`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.detail || 'Failed to update resume');
+    }
+    const updated = await res.json();
+    setResumes(prev => prev.map(r => r.id === id ? updated : r));
+    return updated;
+  };
+
+  // ---- Delete Resume (optional) ----
+  const deleteResume = async (id) => {
+    if (!isAuthenticated) throw new Error('Not authenticated');
+    const res = await fetch(`${API_BASE}/resumes/${id}/`, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.detail || 'Failed to delete resume');
+    }
+    setResumes(prev => prev.filter(r => r.id !== id));
   };
 
   // ---- Create Application ----
@@ -102,8 +138,10 @@ export function useCVData() {
       if (res.ok) {
         const newApp = await res.json();
         setApplications((prev) => [...prev, newApp]);
+        return newApp;
       } else {
-        throw new Error('Failed to create application');
+        const error = await res.json();
+        throw new Error(error.detail || 'Failed to create application');
       }
     } else {
       const guestApps = JSON.parse(localStorage.getItem('guest_applications') || '[]');
@@ -116,10 +154,11 @@ export function useCVData() {
       localStorage.setItem('guest_applications', JSON.stringify(guestApps));
       setApplications(guestApps);
       setHasGuestData(true);
+      return newApp;
     }
   };
 
-  // ---- Migrate Guest Data (manual, not triggered by banner) ----
+  // ---- Migrate Guest Data ----
   const migrateGuestData = async () => {
     if (!isAuthenticated) return;
     const guestR = JSON.parse(localStorage.getItem('guest_resumes') || '[]');
@@ -172,6 +211,8 @@ export function useCVData() {
     applications,
     loading,
     createResume,
+    updateResume,
+    deleteResume,
     createApplication,
     migrateGuestData,
     hasGuestData,
