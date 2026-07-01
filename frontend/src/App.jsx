@@ -25,7 +25,7 @@ import BookingWizard from "./pages/BookingWizard";
 import PerfumeAnalyticsDashboard from "./pages/Dashboard";
 import ManVanAnalyticsDashboard from "./pages/ManVanAnalyticsDashboard";
 import ProjectsPage from "./pages/ProjectsPage";
-
+import NewsFeed from "./components/NewsFeed";
 
 
 import {
@@ -52,6 +52,7 @@ function Home() {
         <Hero />
       </div>
       <About />
+      <NewsFeed />
       <Tech />
       <Works />
       <Feedbacks />
