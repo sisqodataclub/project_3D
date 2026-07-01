@@ -14,39 +14,44 @@ const ProjectCard = ({ index, name, description, tags, image, source_code_link }
   <motion.div variants={fadeIn("up", "spring", index * 0.5, 0.75)}>
     <Tilt
       options={{ max: 45, scale: 1, speed: 450 }}
-      className="bg-tertiary p-5 rounded-2xl sm:w-[360px] w-full cursor-pointer"
-      onClick={() => window.open(source_code_link, "_blank")}
+      className="bg-tertiary p-5 rounded-2xl sm:w-[360px] w-full"
     >
-      <div className="relative w-full h-[230px]">
-        <img
-          src={image}
-          alt={name}
-          className="w-full h-full object-cover rounded-2xl"
-        />
-        <div className="absolute inset-0 flex justify-end m-3 card-img_hover">
-          <div
-            onClick={(e) => {
-              e.stopPropagation();
-              window.open(source_code_link, "_blank");
-            }}
-            className="black-gradient w-10 h-10 rounded-full flex justify-center items-center cursor-pointer"
-          >
-            <img src={github} alt="source code" className="w-1/2 h-1/2 object-contain" />
+      {/* Card clickable wrapper */}
+      <div
+        onClick={() => window.open(source_code_link, "_blank")}
+        className="cursor-pointer"
+      >
+        <div className="relative w-full h-[230px]">
+          <img
+            src={image}
+            alt={name}
+            className="w-full h-full object-cover rounded-2xl"
+          />
+          <div className="absolute inset-0 flex justify-end m-3 card-img_hover">
+            <div
+              onClick={(e) => {
+                e.stopPropagation();
+                window.open(source_code_link, "_blank");
+              }}
+              className="black-gradient w-10 h-10 rounded-full flex justify-center items-center cursor-pointer"
+            >
+              <img src={github} alt="source code" className="w-1/2 h-1/2 object-contain" />
+            </div>
           </div>
         </div>
-      </div>
 
-      <div className="mt-5">
-        <h3 className="text-white font-bold text-[24px]">{name}</h3>
-        <p className="mt-2 text-secondary text-[14px]">{description}</p>
-      </div>
+        <div className="mt-5">
+          <h3 className="text-white font-bold text-[24px]">{name}</h3>
+          <p className="mt-2 text-secondary text-[14px]">{description}</p>
+        </div>
 
-      <div className="mt-4 flex flex-wrap gap-2">
-        {tags.map((tag) => (
-          <p key={`${name}-${tag.name}`} className={`text-[14px] ${tag.color}`}>
-            #{tag.name}
-          </p>
-        ))}
+        <div className="mt-4 flex flex-wrap gap-2">
+          {tags.map((tag) => (
+            <p key={`${name}-${tag.name}`} className={`text-[14px] ${tag.color}`}>
+              #{tag.name}
+            </p>
+          ))}
+        </div>
       </div>
     </Tilt>
   </motion.div>
@@ -55,14 +60,12 @@ const ProjectCard = ({ index, name, description, tags, image, source_code_link }
 const Works = () => {
   const [activeCategory, setActiveCategory] = useState("All");
 
-  // Get unique categories, excluding "Blogs"
   const categories = useMemo(() => {
     const allCategories = projects.map((project) => project.category);
     const filtered = allCategories.filter(cat => cat && cat !== "Blogs");
     return ["All", ...new Set(filtered)];
   }, []);
 
-  // Filter projects: exclude "Blogs" when "All" is selected
   const filteredProjects = useMemo(() => {
     return projects.filter(project => {
       if (activeCategory === "All") {
@@ -78,7 +81,6 @@ const Works = () => {
         <TechHeader title="My Projects" />
       </motion.div>
 
-      {/* Category Filters */}
       <div className="mt-6 mb-10 flex flex-wrap gap-4 justify-center">
         {categories.map((cat) => (
           <button
@@ -95,7 +97,6 @@ const Works = () => {
         ))}
       </div>
 
-      {/* Project Cards */}
       <div className="mt-10 flex flex-wrap gap-7 justify-center">
         {filteredProjects.length > 0 ? (
           filteredProjects.map((project, index) => (
@@ -110,7 +111,6 @@ const Works = () => {
         )}
       </div>
 
-      {/* View All Projects Button */}
       <div className="mt-12 flex justify-center">
         <Link
           to="/projects"

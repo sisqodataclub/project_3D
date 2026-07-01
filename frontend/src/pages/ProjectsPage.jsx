@@ -19,46 +19,50 @@ const ProjectCard = ({ index, name, description, tags, image, source_code_link }
   >
     <Tilt
       options={{ max: 45, scale: 1, speed: 450 }}
-      className="bg-tertiary p-5 rounded-2xl w-full h-full flex flex-col border border-white/10 hover:border-white/20 transition-colors cursor-pointer"
-      onClick={() => window.open(source_code_link, "_blank")}
+      className="bg-tertiary p-5 rounded-2xl w-full h-full flex flex-col border border-white/10 hover:border-white/20 transition-colors"
     >
-      <div className="relative w-full h-[230px] rounded-2xl overflow-hidden group">
-        <img
-          src={image}
-          alt={name}
-          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 ease-in-out"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-50" />
+      <div
+        onClick={() => window.open(source_code_link, "_blank")}
+        className="cursor-pointer w-full h-full flex flex-col"
+      >
+        <div className="relative w-full h-[230px] rounded-2xl overflow-hidden group">
+          <img
+            src={image}
+            alt={name}
+            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 ease-in-out"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-50" />
 
-        <div className="absolute inset-0 flex justify-end m-3">
-          <div
-            onClick={(e) => {
-              e.stopPropagation();
-              window.open(source_code_link, "_blank");
-            }}
-            className="black-gradient w-10 h-10 rounded-full flex justify-center items-center cursor-pointer shadow-lg hover:scale-110 hover:shadow-[#915EFF]/50 transition-all duration-300"
-          >
-            <img src={github} alt="source code" className="w-1/2 h-1/2 object-contain" />
+          <div className="absolute inset-0 flex justify-end m-3">
+            <div
+              onClick={(e) => {
+                e.stopPropagation();
+                window.open(source_code_link, "_blank");
+              }}
+              className="black-gradient w-10 h-10 rounded-full flex justify-center items-center cursor-pointer shadow-lg hover:scale-110 hover:shadow-[#915EFF]/50 transition-all duration-300"
+            >
+              <img src={github} alt="source code" className="w-1/2 h-1/2 object-contain" />
+            </div>
           </div>
         </div>
-      </div>
 
-      <div className="mt-5 flex-grow">
-        <h3 className="text-white font-bold text-[24px]">{name}</h3>
-        <p className="mt-2 text-secondary text-[14px] line-clamp-3 leading-relaxed">
-          {description}
-        </p>
-      </div>
+        <div className="mt-5 flex-grow">
+          <h3 className="text-white font-bold text-[24px]">{name}</h3>
+          <p className="mt-2 text-secondary text-[14px] line-clamp-3 leading-relaxed">
+            {description}
+          </p>
+        </div>
 
-      <div className="mt-5 flex flex-wrap gap-2">
-        {tags.map((tag) => (
-          <span
-            key={tag.name}
-            className={`text-[13px] font-medium px-2 py-1 rounded-md bg-black/20 ${tag.color}`}
-          >
-            #{tag.name}
-          </span>
-        ))}
+        <div className="mt-5 flex flex-wrap gap-2">
+          {tags.map((tag) => (
+            <span
+              key={tag.name}
+              className={`text-[13px] font-medium px-2 py-1 rounded-md bg-black/20 ${tag.color}`}
+            >
+              #{tag.name}
+            </span>
+          ))}
+        </div>
       </div>
     </Tilt>
   </motion.div>
@@ -67,14 +71,12 @@ const ProjectCard = ({ index, name, description, tags, image, source_code_link }
 const ProjectsPage = () => {
   const [activeCategory, setActiveCategory] = useState("All");
 
-  // Get unique categories, excluding "Blogs"
   const categories = useMemo(() => {
     const allCategories = projects.map((project) => project.category);
     const filtered = allCategories.filter(cat => cat && cat !== "Blogs");
     return ["All", ...new Set(filtered)];
   }, []);
 
-  // Filter projects: exclude "Blogs" when "All" is selected
   const filteredProjects = useMemo(() => {
     return projects.filter(project => {
       if (activeCategory === "All") {
@@ -92,7 +94,6 @@ const ProjectsPage = () => {
           <h2 className={styles.sectionHeadText}>Projects.</h2>
         </motion.div>
 
-        {/* Modern Sliding Category Filters */}
         <div className="flex flex-wrap gap-3 mt-8 justify-center lg:justify-start">
           {categories.map((cat) => (
             <button
@@ -116,7 +117,6 @@ const ProjectsPage = () => {
           ))}
         </div>
 
-        {/* Project Grid with AnimatePresence for smooth filtering */}
         <motion.div layout className="mt-12 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           <AnimatePresence mode="popLayout">
             {filteredProjects.length > 0 ? (
