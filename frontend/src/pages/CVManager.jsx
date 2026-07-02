@@ -41,7 +41,6 @@ export default function CVManager() {
     const updated = [...cvForm[section]];
     updated[index][field] = value;
     setCvForm({ ...cvForm, [section]: updated });
-    // Clear warning when user types
     if (formWarning) setFormWarning('');
   };
 
@@ -67,25 +66,20 @@ export default function CVManager() {
       return;
     }
 
-    // Helper: filter out items that are completely empty or missing required fields
     const filterValid = (items, requiredFields, sectionName) => {
       let skipped = 0;
       const valid = items
         .filter(item => {
-          // If the item has any non-empty field, check required fields
           const hasAnyData = Object.values(item).some(v => v && v.trim() !== '');
-          if (!hasAnyData) return false; // completely empty → skip
-
-          // Check required fields
+          if (!hasAnyData) return false;
           const missing = requiredFields.filter(f => !item[f] || item[f].trim() === '');
           if (missing.length > 0) {
             skipped++;
-            return false; // skip if missing required fields
+            return false;
           }
           return true;
         })
         .map(item => {
-          // Convert empty dates/url to null for the backend
           const cleaned = { ...item };
           Object.keys(cleaned).forEach(key => {
             if (key.includes('date') || key === 'url') {
@@ -118,14 +112,12 @@ export default function CVManager() {
 
       await createResume(payload);
 
-      // If we have warnings but still succeeded, show them briefly
       if (formWarning) {
         alert(formWarning);
       }
 
       setShowCVForm(false);
       setFormWarning('');
-      // Reset form
       setCvForm({
         full_name: '',
         about: '',
@@ -144,12 +136,13 @@ export default function CVManager() {
     }
   };
 
-  // ---- Job Application Handlers (unchanged) ----
+  // ---- Job Application Handlers (updated with deadline_date) ----
   const [jobFormData, setJobFormData] = useState({
     job_link: '',
     company: '',
     position: '',
     date_applied: '',
+    deadline_date: '',  // new field
     status: 'saved',
     resume_used: '',
     notes: '',
@@ -172,6 +165,7 @@ export default function CVManager() {
         company: '',
         position: '',
         date_applied: '',
+        deadline_date: '',
         status: 'saved',
         resume_used: '',
         notes: '',
@@ -338,7 +332,7 @@ export default function CVManager() {
         )}
       </div>
 
-      {/* ---- JOB APPLICATION SECTION (unchanged) ---- */}
+      {/* ---- JOB APPLICATION SECTION (updated with deadline_date) ---- */}
       <div>
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-semibold">Your Job Applications ({applications.length})</h2>
@@ -359,7 +353,16 @@ export default function CVManager() {
               <div><label className="block text-sm font-medium mb-1">Company *</label><input type="text" name="company" value={jobFormData.company} onChange={handleJobChange} className="w-full p-2 bg-gray-700 rounded border border-gray-600" required /></div>
               <div><label className="block text-sm font-medium mb-1">Position *</label><input type="text" name="position" value={jobFormData.position} onChange={handleJobChange} className="w-full p-2 bg-gray-700 rounded border border-gray-600" required /></div>
               <div><label className="block text-sm font-medium mb-1">Job Link *</label><input type="url" name="job_link" value={jobFormData.job_link} onChange={handleJobChange} className="w-full p-2 bg-gray-700 rounded border border-gray-600" required /></div>
-              <div><label className="block text-sm font-medium mb-1">Date Applied</label><input type="date" name="date_applied" value={jobFormData.date_applied} onChange={handleJobChange} className="w-full p-2 bg-gray-700 rounded border border-gray-600" /></div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:col-span-2">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Date Applied</label>
+                  <input type="date" name="date_applied" value={jobFormData.date_applied} onChange={handleJobChange} className="w-full p-2 bg-gray-700 rounded border border-gray-600" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Deadline Date</label>
+                  <input type="date" name="deadline_date" value={jobFormData.deadline_date} onChange={handleJobChange} className="w-full p-2 bg-gray-700 rounded border border-gray-600" />
+                </div>
+              </div>
               <div><label className="block text-sm font-medium mb-1">Status</label><select name="status" value={jobFormData.status} onChange={handleJobChange} className="w-full p-2 bg-gray-700 rounded border border-gray-600"><option value="saved">Saved</option><option value="applied">Applied</option><option value="interviewing">Interviewing</option><option value="offered">Offered</option><option value="rejected">Rejected</option></select></div>
               <div><label className="block text-sm font-medium mb-1">Resume Used</label><select name="resume_used" value={jobFormData.resume_used} onChange={handleJobChange} className="w-full p-2 bg-gray-700 rounded border border-gray-600"><option value="">None</option>{resumes.map((r) => <option key={r.id} value={r.id}>{r.full_name}</option>)}</select></div>
               <div className="md:col-span-2"><label className="block text-sm font-medium mb-1">Notes</label><textarea name="notes" rows="2" value={jobFormData.notes} onChange={handleJobChange} className="w-full p-2 bg-gray-700 rounded border border-gray-600" /></div>
@@ -379,7 +382,10 @@ export default function CVManager() {
                   <p className="text-sm text-gray-300">Status: <span className={`font-semibold ${app.status === 'rejected' ? 'text-red-400' : app.status === 'offered' ? 'text-green-400' : app.status === 'interviewing' ? 'text-yellow-400' : 'text-blue-400'}`}>{app.status}</span></p>
                   <p className="text-sm text-gray-400">🔗 <a href={app.job_link} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline" onClick={(e) => e.stopPropagation()}>View Job</a></p>
                   {app.notes && <p className="text-sm text-gray-400 mt-1">📝 {app.notes}</p>}
-                  <p className="text-xs text-gray-500 mt-2">Applied: {app.date_applied ? new Date(app.date_applied).toLocaleDateString() : 'N/A'}</p>
+                  <p className="text-xs text-gray-500 mt-2">
+                    Applied: {app.date_applied ? new Date(app.date_applied).toLocaleDateString() : 'N/A'}
+                    {app.deadline_date && ` · Deadline: ${new Date(app.deadline_date).toLocaleDateString()}`}
+                  </p>
                 </div>
               </Link>
             ))}

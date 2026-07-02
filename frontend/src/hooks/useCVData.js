@@ -158,6 +158,26 @@ export function useCVData() {
     }
   };
 
+  // ---- Update Application ----
+  const updateApplication = async (id, data) => {
+    if (!isAuthenticated) throw new Error('Not authenticated');
+    const res = await fetch(`${API_BASE}/applications/${id}/`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.detail || 'Failed to update application');
+    }
+    const updated = await res.json();
+    setApplications(prev => prev.map(a => a.id === id ? updated : a));
+    return updated;
+  };
+
   // ---- Migrate Guest Data ----
   const migrateGuestData = async () => {
     if (!isAuthenticated) return;
@@ -214,6 +234,7 @@ export function useCVData() {
     updateResume,
     deleteResume,
     createApplication,
+    updateApplication,   // <-- new
     migrateGuestData,
     hasGuestData,
   };
