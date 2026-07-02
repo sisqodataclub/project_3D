@@ -1,4 +1,4 @@
-// Full CVDetail.jsx with section reordering and title support
+// Full CVDetail.jsx with section reordering, title support, and duplicate functionality
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useHVT } from '../context/HVTContext';
@@ -20,7 +20,7 @@ export default function CVDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { accessToken, isAuthenticated, loading: authLoading } = useHVT();
-  const { updateResume, deleteResume } = useCVData();
+  const { updateResume, deleteResume, createResume } = useCVData(); // added createResume
 
   const [resume, setResume] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -157,7 +157,7 @@ export default function CVDetail() {
       };
 
       const payload = {
-        title: editData.title || null,  // <-- include title
+        title: editData.title || null,
         full_name: editData.full_name,
         about: editData.about,
         email: editData.email,
@@ -183,7 +183,39 @@ export default function CVDetail() {
     }
   };
 
-  // --- Delete and PDF download (unchanged) ---
+  // --- Duplicate resume ---
+  const handleDuplicate = async () => {
+    // Clean nested data
+    const cleanNested = (items) => items.map(({ id, created_at, updated_at, ...rest }) => rest);
+
+    const newTitle = resume.title ? `Copy of ${resume.title}` : `Copy of ${resume.full_name}`;
+
+    const payload = {
+      title: newTitle,
+      full_name: resume.full_name,
+      about: resume.about,
+      email: resume.email,
+      phone: resume.phone,
+      age: resume.age || null,
+      educations: cleanNested(resume.educations || []),
+      experiences: cleanNested(resume.experiences || []),
+      projects: cleanNested(resume.projects || []),
+      skills: cleanNested(resume.skills || []),
+      languages: cleanNested(resume.languages || []),
+      achievements: cleanNested(resume.achievements || []),
+      section_order: resume.section_order || [...DEFAULT_SECTIONS],
+    };
+
+    try {
+      const newResume = await createResume(payload);
+      // Navigate to the new duplicate's detail page
+      navigate(`/cv/${newResume.id}`);
+    } catch (err) {
+      alert('Error duplicating resume: ' + err.message);
+    }
+  };
+
+  // --- Delete and PDF download ---
   const handleDelete = async () => {
     if (!window.confirm('Are you sure you want to delete this resume? This action cannot be undone.')) return;
     try {
@@ -280,10 +312,14 @@ export default function CVDetail() {
         <div className="max-w-4xl mx-auto">
           <div className="flex justify-between items-center mb-6">
             <Link to="/cv" className="text-blue-400 hover:text-blue-300 transition">← Back to CV Manager</Link>
-            <div className="flex gap-3">
+            <div className="flex gap-2 flex-wrap">
               <button onClick={enableEditing} className="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 rounded-lg font-semibold transition flex items-center gap-2">
                 <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" /></svg>
                 Edit
+              </button>
+              <button onClick={handleDuplicate} className="px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg font-semibold transition flex items-center gap-2">
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 0v12h8V8h-3a1 1 0 01-1-1V4H6zm5 3V4l3 3h-3z" /></svg>
+                Duplicate
               </button>
               <button onClick={downloadPDF} className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg font-semibold transition flex items-center gap-2">
                 <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V7l-5-5H6zm8 13a1 1 0 01-1 1H7a1 1 0 01-1-1v-1a1 1 0 011-1h6a1 1 0 011 1v1zm-3-8V3.5L13.5 7H11z" clipRule="evenodd" /></svg>
