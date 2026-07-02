@@ -1,10 +1,9 @@
-// Full CVDetail.jsx with section reordering
+// Full CVDetail.jsx with section reordering and title support
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useHVT } from '../context/HVTContext';
 import { useCVData } from '../hooks/useCVData';
 
-// ✅ ADD THIS LINE – missing API_BASE
 const API_BASE = 'https://api.franciscodes.com/cv/api';
 
 const DEFAULT_SECTIONS = ['educations', 'experiences', 'projects', 'skills', 'languages', 'achievements'];
@@ -71,7 +70,7 @@ export default function CVDetail() {
     fetchResume();
   }, [id, isAuthenticated, accessToken, authLoading]);
 
-  // --- edit mode handlers (same as before, plus moveSection) ---
+  // --- edit mode handlers ---
   const enableEditing = () => {
     const data = JSON.parse(JSON.stringify(resume));
     if (!data.section_order || data.section_order.length === 0) {
@@ -134,7 +133,7 @@ export default function CVDetail() {
     setEditData({ ...editData, section_order: newOrder });
   };
 
-  // --- Save changes ---
+  // --- Save changes (include title) ---
   const handleSave = async () => {
     setSaveLoading(true);
     try {
@@ -158,6 +157,7 @@ export default function CVDetail() {
       };
 
       const payload = {
+        title: editData.title || null,  // <-- include title
         full_name: editData.full_name,
         about: editData.about,
         email: editData.email,
@@ -208,7 +208,7 @@ export default function CVDetail() {
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `${resume?.full_name || 'resume'}_${id}.pdf`;
+      link.download = `${resume?.title || resume?.full_name || 'resume'}_${id}.pdf`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -299,6 +299,7 @@ export default function CVDetail() {
           <div className="bg-gray-900 rounded-2xl shadow-2xl overflow-hidden border border-gray-800">
             <div className="bg-gradient-to-r from-blue-800 to-purple-800 px-8 py-10">
               <h1 className="text-4xl font-bold text-white">{resume.full_name}</h1>
+              {resume.title && <p className="text-blue-300 text-lg italic">{resume.title}</p>}
               <p className="text-blue-200 text-lg mt-1">{resume.about}</p>
               <div className="flex flex-wrap gap-6 mt-4 text-sm text-blue-100">
                 {resume.email && <span>📧 {resume.email}</span>}
@@ -335,8 +336,18 @@ export default function CVDetail() {
         </div>
 
         <form onSubmit={(e) => { e.preventDefault(); handleSave(); }} className="bg-gray-900 p-6 rounded-2xl shadow-2xl border border-gray-800 space-y-6">
-          {/* Basic Info - unchanged */}
+          {/* Basic Info - added title input */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">CV Title (optional)</label>
+              <input
+                type="text"
+                value={editData.title || ''}
+                onChange={(e) => handleFieldChange('title', e.target.value)}
+                className="w-full p-2 bg-gray-700 rounded border border-gray-600"
+                placeholder="e.g., Data Analyst CV"
+              />
+            </div>
             <div><label className="block text-sm font-medium mb-1">Full Name *</label><input type="text" value={editData.full_name || ''} onChange={(e) => handleFieldChange('full_name', e.target.value)} className="w-full p-2 bg-gray-700 rounded border border-gray-600" required /></div>
             <div><label className="block text-sm font-medium mb-1">About *</label><textarea rows="2" value={editData.about || ''} onChange={(e) => handleFieldChange('about', e.target.value)} className="w-full p-2 bg-gray-700 rounded border border-gray-600" required /></div>
             <div><label className="block text-sm font-medium mb-1">Email *</label><input type="email" value={editData.email || ''} onChange={(e) => handleFieldChange('email', e.target.value)} className="w-full p-2 bg-gray-700 rounded border border-gray-600" required /></div>

@@ -23,6 +23,7 @@ export default function CVManager() {
 
   // ---- Resume Form State (nested) ----
   const [cvForm, setCvForm] = useState({
+    title: '',  // <-- new optional CV title field
     full_name: '',
     about: '',
     email: '',
@@ -97,6 +98,7 @@ export default function CVManager() {
 
     try {
       const payload = {
+        title: cvForm.title || null,  // <-- include title
         full_name: cvForm.full_name,
         about: cvForm.about,
         email: cvForm.email,
@@ -119,6 +121,7 @@ export default function CVManager() {
       setShowCVForm(false);
       setFormWarning('');
       setCvForm({
+        title: '',
         full_name: '',
         about: '',
         email: '',
@@ -142,7 +145,7 @@ export default function CVManager() {
     company: '',
     position: '',
     date_applied: '',
-    deadline_date: '',  // new field
+    deadline_date: '',
     status: 'saved',
     resume_used: '',
     notes: '',
@@ -243,6 +246,17 @@ export default function CVManager() {
 
             {/* Basic Info */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">CV Title (optional)</label>
+                <input
+                  type="text"
+                  name="title"
+                  value={cvForm.title}
+                  onChange={(e) => setCvForm({...cvForm, title: e.target.value})}
+                  className="w-full p-2 bg-gray-700 rounded border border-gray-600"
+                  placeholder="e.g., Data Analyst CV"
+                />
+              </div>
               <div><label className="block text-sm font-medium mb-1">Full Name *</label><input type="text" name="full_name" value={cvForm.full_name} onChange={(e) => setCvForm({...cvForm, full_name: e.target.value})} className="w-full p-2 bg-gray-700 rounded border border-gray-600" required /></div>
               <div><label className="block text-sm font-medium mb-1">Email *</label><input type="email" name="email" value={cvForm.email} onChange={(e) => setCvForm({...cvForm, email: e.target.value})} className="w-full p-2 bg-gray-700 rounded border border-gray-600" required /></div>
               <div><label className="block text-sm font-medium mb-1">Phone *</label><input type="text" name="phone" value={cvForm.phone} onChange={(e) => setCvForm({...cvForm, phone: e.target.value})} className="w-full p-2 bg-gray-700 rounded border border-gray-600" required /></div>
@@ -320,7 +334,8 @@ export default function CVManager() {
             {resumes.map((r) => (
               <Link to={`/cv/${r.id}`} key={r.id} className="block transition hover:scale-[1.02]">
                 <div className="bg-gray-800 p-4 rounded-lg shadow cursor-pointer">
-                  <h3 className="text-lg font-bold">{r.full_name}</h3>
+                  <h3 className="text-lg font-bold">{r.title || r.full_name}</h3>
+                  <p className="text-sm text-gray-400">{r.full_name}</p>
                   <p className="text-sm text-gray-300">{r.about}</p>
                   <p className="text-sm text-gray-400">📧 {r.email}</p>
                   <p className="text-sm text-gray-400">📞 {r.phone}</p>
@@ -364,7 +379,7 @@ export default function CVManager() {
                 </div>
               </div>
               <div><label className="block text-sm font-medium mb-1">Status</label><select name="status" value={jobFormData.status} onChange={handleJobChange} className="w-full p-2 bg-gray-700 rounded border border-gray-600"><option value="saved">Saved</option><option value="applied">Applied</option><option value="interviewing">Interviewing</option><option value="offered">Offered</option><option value="rejected">Rejected</option></select></div>
-              <div><label className="block text-sm font-medium mb-1">Resume Used</label><select name="resume_used" value={jobFormData.resume_used} onChange={handleJobChange} className="w-full p-2 bg-gray-700 rounded border border-gray-600"><option value="">None</option>{resumes.map((r) => <option key={r.id} value={r.id}>{r.full_name}</option>)}</select></div>
+              <div><label className="block text-sm font-medium mb-1">Resume Used</label><select name="resume_used" value={jobFormData.resume_used} onChange={handleJobChange} className="w-full p-2 bg-gray-700 rounded border border-gray-600"><option value="">None</option>{resumes.map((r) => <option key={r.id} value={r.id}>{r.title || r.full_name}</option>)}</select></div>
               <div className="md:col-span-2"><label className="block text-sm font-medium mb-1">Notes</label><textarea name="notes" rows="2" value={jobFormData.notes} onChange={handleJobChange} className="w-full p-2 bg-gray-700 rounded border border-gray-600" /></div>
             </div>
             <button type="submit" className="px-6 py-2 bg-green-600 hover:bg-green-700 rounded-lg font-semibold transition">Create Application</button>
