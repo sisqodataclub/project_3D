@@ -1,5 +1,5 @@
 // Full CVDetail.jsx with section reordering, title support, duplicate functionality,
-// Markdown rendering for descriptions, and preview toggle in edit mode.
+// Markdown rendering for descriptions, preview toggle, and "currently working" support.
 
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
@@ -118,6 +118,10 @@ export default function CVDetail() {
 
   const handleNestedChange = (section, index, field, value) => {
     const updated = [...editData[section]];
+    // If we're updating is_current and it's true, clear end_date
+    if (section === 'experiences' && field === 'is_current' && value === true) {
+      updated[index].end_date = '';
+    }
     updated[index][field] = value;
     setEditData({ ...editData, [section]: updated });
   };
@@ -178,6 +182,10 @@ export default function CVDetail() {
                 cleaned[key] = cleaned[key] || null;
               }
             });
+            // If is_current is true, ensure end_date is null
+            if (cleaned.is_current) {
+              cleaned.end_date = null;
+            }
             return cleaned;
           });
       };
@@ -346,7 +354,13 @@ export default function CVDetail() {
                   <li key={item.id}>
                     {item.position} at {item.company}
                     {item.location && ` (${item.location})`}
-                    {item.start_date && ` (${item.start_date}${item.end_date ? ` - ${item.end_date}` : ''})`}
+                    {item.start_date && (
+                      <span>
+                        {' '}
+                        ({item.start_date}
+                        {item.is_current ? ' – Present' : item.end_date ? ` – ${item.end_date}` : ''})
+                      </span>
+                    )}
                     {item.description && (
                       <div className="ml-6 text-sm text-gray-400">
                         <MarkdownContent>{item.description}</MarkdownContent>
@@ -570,6 +584,7 @@ export default function CVDetail() {
                 end_date: '',
                 description: '',
                 location: '',
+                is_current: false,
                 order: items.length,
               },
               projects: {
@@ -630,6 +645,7 @@ export default function CVDetail() {
                 {items.map((item, idx2) => {
                   const previewKey = `${sectionName}-${idx2}`;
                   const showPreview = previewStates[previewKey] || false;
+                  const isExperience = sectionName === 'experiences';
 
                   return (
                     <div key={idx2} className="flex gap-2 items-start mb-2">
@@ -676,6 +692,21 @@ export default function CVDetail() {
                               );
                             }
 
+                            // Special handling for is_current checkbox
+                            if (isExperience && key === 'is_current') {
+                              return (
+                                <div key={key} className="col-span-2 flex items-center gap-2 mt-1">
+                                  <input
+                                    type="checkbox"
+                                    checked={item.is_current || false}
+                                    onChange={(e) => handleNestedChange(sectionName, idx2, key, e.target.checked)}
+                                    className="w-4 h-4"
+                                  />
+                                  <label className="text-sm text-gray-300">Currently working here</label>
+                                </div>
+                              );
+                            }
+
                             return (
                               <div key={key} className="relative">
                                 <input
@@ -683,9 +714,14 @@ export default function CVDetail() {
                                   placeholder={`${key.replace(/_/g, ' ')}${isRequired ? ' *' : ''}`}
                                   value={item[key] || ''}
                                   onChange={(e) => handleNestedChange(sectionName, idx2, key, e.target.value)}
+                                  disabled={isExperience && key === 'end_date' && item.is_current}
                                   className={`w-full p-1 bg-gray-700 rounded border ${
                                     isRequired ? 'border-blue-500' : 'border-gray-600'
-                                  } text-sm`}
+                                  } text-sm ${
+                                    isExperience && key === 'end_date' && item.is_current
+                                      ? 'opacity-50 cursor-not-allowed'
+                                      : ''
+                                  }`}
                                 />
                               </div>
                             );

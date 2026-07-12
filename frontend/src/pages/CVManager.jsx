@@ -23,14 +23,14 @@ export default function CVManager() {
 
   // ---- Resume Form State (nested) ----
   const [cvForm, setCvForm] = useState({
-    title: '',  // <-- new optional CV title field
+    title: '',
     full_name: '',
     about: '',
     email: '',
     phone: '',
     age: '',
     educations: [{ institution: '', degree: '', field_of_study: '', start_date: '', end_date: '', description: '' }],
-    experiences: [{ company: '', position: '', start_date: '', end_date: '', description: '', location: '' }],
+    experiences: [{ company: '', position: '', start_date: '', end_date: '', description: '', location: '', is_current: false }],
     projects: [{ name: '', description: '', url: '', start_date: '', end_date: '' }],
     skills: [{ name: '', proficiency: '' }],
     languages: [{ name: '', proficiency: '' }],
@@ -40,6 +40,10 @@ export default function CVManager() {
   // ---- Helper: update a nested array field ----
   const updateArrayField = (section, index, field, value) => {
     const updated = [...cvForm[section]];
+    // If we're updating is_current and it's true, set end_date to empty string.
+    if (field === 'is_current' && value === true) {
+      updated[index].end_date = '';
+    }
     updated[index][field] = value;
     setCvForm({ ...cvForm, [section]: updated });
     if (formWarning) setFormWarning('');
@@ -87,6 +91,10 @@ export default function CVManager() {
               cleaned[key] = cleaned[key] || null;
             }
           });
+          // Ensure is_current is preserved and end_date is null if is_current is true
+          if (cleaned.is_current) {
+            cleaned.end_date = null;
+          }
           return cleaned;
         });
 
@@ -98,7 +106,7 @@ export default function CVManager() {
 
     try {
       const payload = {
-        title: cvForm.title || null,  // <-- include title
+        title: cvForm.title || null,
         full_name: cvForm.full_name,
         about: cvForm.about,
         email: cvForm.email,
@@ -128,7 +136,7 @@ export default function CVManager() {
         phone: '',
         age: '',
         educations: [{ institution: '', degree: '', field_of_study: '', start_date: '', end_date: '', description: '' }],
-        experiences: [{ company: '', position: '', start_date: '', end_date: '', description: '', location: '' }],
+        experiences: [{ company: '', position: '', start_date: '', end_date: '', description: '', location: '', is_current: false }],
         projects: [{ name: '', description: '', url: '', start_date: '', end_date: '' }],
         skills: [{ name: '', proficiency: '' }],
         languages: [{ name: '', proficiency: '' }],
@@ -139,7 +147,7 @@ export default function CVManager() {
     }
   };
 
-  // ---- Job Application Handlers (updated with deadline_date) ----
+  // ---- Job Application Handlers ----
   const [jobFormData, setJobFormData] = useState({
     job_link: '',
     company: '',
@@ -270,7 +278,7 @@ export default function CVManager() {
               const items = cvForm[section];
               const emptyItem = {
                 educations: { institution: '', degree: '', field_of_study: '', start_date: '', end_date: '', description: '' },
-                experiences: { company: '', position: '', start_date: '', end_date: '', description: '', location: '' },
+                experiences: { company: '', position: '', start_date: '', end_date: '', description: '', location: '', is_current: false },
                 projects: { name: '', description: '', url: '', start_date: '', end_date: '' },
                 skills: { name: '', proficiency: '' },
                 languages: { name: '', proficiency: '' },
@@ -303,6 +311,22 @@ export default function CVManager() {
                           let inputType = 'text';
                           if (key.includes('date')) inputType = 'date';
                           if (key === 'url') inputType = 'url';
+                          
+                          // Special handling for is_current checkbox
+                          if (key === 'is_current') {
+                            return (
+                              <div key={key} className="col-span-2 flex items-center gap-2 mt-1">
+                                <input
+                                  type="checkbox"
+                                  checked={item.is_current || false}
+                                  onChange={(e) => updateArrayField(section, idx, key, e.target.checked)}
+                                  className="w-4 h-4"
+                                />
+                                <label className="text-sm text-gray-300">Currently working here</label>
+                              </div>
+                            );
+                          }
+
                           return (
                             <div key={key} className="relative">
                               <input
@@ -310,7 +334,8 @@ export default function CVManager() {
                                 placeholder={`${key.replace(/_/g, ' ')}${isRequired ? ' *' : ''}`}
                                 value={item[key] || ''}
                                 onChange={(e) => updateArrayField(section, idx, key, e.target.value)}
-                                className={`w-full p-1 bg-gray-700 rounded border ${isRequired ? 'border-blue-500' : 'border-gray-600'} text-sm`}
+                                disabled={key === 'end_date' && item.is_current}
+                                className={`w-full p-1 bg-gray-700 rounded border ${isRequired ? 'border-blue-500' : 'border-gray-600'} text-sm ${key === 'end_date' && item.is_current ? 'opacity-50 cursor-not-allowed' : ''}`}
                               />
                             </div>
                           );
@@ -347,7 +372,7 @@ export default function CVManager() {
         )}
       </div>
 
-      {/* ---- JOB APPLICATION SECTION (updated with deadline_date) ---- */}
+      {/* ---- JOB APPLICATION SECTION (unchanged) ---- */}
       <div>
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-semibold">Your Job Applications ({applications.length})</h2>

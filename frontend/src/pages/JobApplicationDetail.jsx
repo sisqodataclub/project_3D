@@ -9,7 +9,7 @@ export default function JobApplicationDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { accessToken, isAuthenticated, loading: authLoading } = useHVT();
-  const { updateApplication } = useCVData();
+  const { updateApplication, resumes, loading: resumesLoading } = useCVData();
 
   const [app, setApp] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -96,7 +96,7 @@ export default function JobApplicationDetail() {
     rejected: 'text-red-400 border-red-400',
   };
 
-  if (authLoading || loading) {
+  if (authLoading || loading || resumesLoading) {
     return <div className="min-h-screen flex items-center justify-center bg-[#0b0e14] text-slate-100">Loading...</div>;
   }
 
@@ -119,6 +119,10 @@ export default function JobApplicationDetail() {
 
   // ---- View mode ----
   if (!isEditing) {
+    // Find the resume name for display
+    const usedResume = resumes.find(r => r.id === app.resume_used);
+    const resumeDisplay = usedResume ? (usedResume.title || usedResume.full_name) : null;
+
     return (
       <div className="min-h-screen bg-[#0b0e14] text-slate-100 py-10 px-4">
         <div className="max-w-3xl mx-auto">
@@ -176,10 +180,10 @@ export default function JobApplicationDetail() {
                   <span className="ml-2">{new Date(app.deadline_date).toLocaleDateString()}</span>
                 </div>
               )}
-              {app.resume_used && (
+              {resumeDisplay && (
                 <div>
                   <span className="font-semibold text-white">Resume Used:</span>
-                  <span className="ml-2">ID: {app.resume_used}</span>
+                  <span className="ml-2">{resumeDisplay}</span>
                 </div>
               )}
               {app.notes && (
@@ -287,10 +291,12 @@ export default function JobApplicationDetail() {
                 className="w-full p-2 bg-gray-700 rounded border border-gray-600"
               >
                 <option value="">None</option>
-                {/* We'd need resumes list here; could be passed from parent or fetched separately. For simplicity, we show ID */}
-                {/* In a full implementation, fetch resumes list or pass as prop */}
+                {resumes.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.title || r.full_name}
+                  </option>
+                ))}
               </select>
-              <p className="text-xs text-gray-400 mt-1">Resume ID: {editData.resume_used || 'None'}</p>
             </div>
             <div className="md:col-span-2">
               <label className="block text-sm font-medium mb-1">Notes</label>
