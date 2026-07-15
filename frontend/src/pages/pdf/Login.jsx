@@ -1,4 +1,3 @@
-// frontend/src/pages/pdf/Login.jsx
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiRequestLogin } from '../../services/pdfService';
@@ -103,8 +102,7 @@ export default function PDFLogin() {
       </div>
     </div>
   );
-}// frontend/src/pages/pdf/Login.jsx
-import React, { useState } from 'react';
+}import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiRequestLogin } from '../../services/pdfService';
 
