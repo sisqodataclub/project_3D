@@ -1,4 +1,3 @@
-// frontend/src/pages/pdf/Dashboard.jsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiGeneratePDF, apiListTemplates, apiLogout } from '../../services/pdfService';
@@ -7,35 +6,42 @@ export default function PDFDashboard() {
   const navigate = useNavigate();
   const [apiKey, setApiKey] = useState('');
   const [user, setUser] = useState(null);
-  const [templates, setTemplates] = useState([]);
+  const [templates, setTemplates] = useState([]); // ✅ Always an array
   const [loading, setLoading] = useState(false);
   const [templatesLoading, setTemplatesLoading] = useState(false);
 
+  // Form state
   const [html, setHtml] = useState('<h1>Hello {{ name }}</h1>');
   const [context, setContext] = useState('{"name": "World"}');
   const [css, setCss] = useState('');
   const [filename, setFilename] = useState('document.pdf');
   const [templateSlug, setTemplateSlug] = useState('');
 
+  // Check authentication
   useEffect(() => {
     const storedKey = localStorage.getItem('pdf_api_key');
     const storedUser = localStorage.getItem('pdf_user');
+
     if (!storedKey) {
       navigate('/pdf/login');
       return;
     }
+
     setApiKey(storedKey);
     setUser(storedUser ? JSON.parse(storedUser) : null);
-    fetchTemplates(storedKey);
+    fetchTemplates();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigate]);
 
-  const fetchTemplates = async (key) => {
+  const fetchTemplates = async () => {
     setTemplatesLoading(true);
     try {
-      const data = await apiListTemplates(key);
-      setTemplates(data);
+      const data = await apiListTemplates();
+      // ✅ Ensure data is always an array
+      setTemplates(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error('Failed to fetch templates:', err);
+      setTemplates([]);
     } finally {
       setTemplatesLoading(false);
     }
@@ -46,18 +52,27 @@ export default function PDFDashboard() {
     setLoading(true);
     try {
       let contextData;
-      try { contextData = JSON.parse(context); } catch { contextData = {}; }
+      try {
+        contextData = JSON.parse(context);
+      } catch {
+        contextData = {};
+      }
+
       const params = {
         context: contextData,
         filename: filename || 'document.pdf',
       };
-      if (templateSlug) params.template_slug = templateSlug;
-      else if (html) params.html = html;
-      else {
+
+      if (templateSlug) {
+        params.template_slug = templateSlug;
+      } else if (html) {
+        params.html = html;
+      } else {
         alert('Please provide either HTML or select a template.');
         setLoading(false);
         return;
       }
+
       if (css) params.css = css;
 
       const pdfBlob = await apiGeneratePDF(params);
@@ -82,9 +97,14 @@ export default function PDFDashboard() {
   };
 
   const copyApiKey = () => {
-    navigator.clipboard.writeText(apiKey);
-    alert('API key copied to clipboard!');
+    if (apiKey) {
+      navigator.clipboard.writeText(apiKey);
+      alert('API key copied to clipboard!');
+    }
   };
+
+  // ✅ Guard against null apiKey when displaying
+  const displayApiKey = apiKey || 'No API key found';
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
@@ -116,7 +136,7 @@ export default function PDFDashboard() {
         {/* API Key Display */}
         <div className="mb-6 rounded-lg bg-gray-100 p-3 text-sm">
           <span className="font-mono text-gray-700">
-            API Key: {apiKey?.slice(0, 8)}...{apiKey?.slice(-8)}
+            API Key: {displayApiKey.slice(0, 8)}...{displayApiKey.slice(-8)}
           </span>
         </div>
 
@@ -126,6 +146,7 @@ export default function PDFDashboard() {
               <h2 className="mb-4 text-lg font-semibold">Generate PDF</h2>
 
               <form onSubmit={handleGenerate} className="space-y-4">
+                {/* Template selection */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700">
                     Use stored template (optional)
@@ -137,14 +158,15 @@ export default function PDFDashboard() {
                     disabled={templatesLoading}
                   >
                     <option value="">-- Use raw HTML instead --</option>
-                    {templates.map((t) => (
-                      <option key={t.slug} value={t.slug}>
+                    {Array.isArray(templates) && templates.map((t) => (
+                      <option key={t.slug || t.id} value={t.slug}>
                         {t.name}
                       </option>
                     ))}
                   </select>
                 </div>
 
+                {/* HTML */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700">
                     HTML content
@@ -158,10 +180,11 @@ export default function PDFDashboard() {
                     disabled={!!templateSlug}
                   />
                   <p className="mt-1 text-xs text-gray-500">
-                    Use {{ variable }} syntax for dynamic content.
+                    Use {'{{ variable }}'} syntax for dynamic content.
                   </p>
                 </div>
 
+                {/* Context JSON */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700">
                     Context data (JSON)
@@ -175,6 +198,7 @@ export default function PDFDashboard() {
                   />
                 </div>
 
+                {/* Custom CSS */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700">
                     Custom CSS (optional)
@@ -188,6 +212,7 @@ export default function PDFDashboard() {
                   />
                 </div>
 
+                {/* Filename */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700">
                     Filename
@@ -220,7 +245,7 @@ export default function PDFDashboard() {
                 when calling the PDF API from other apps.
               </p>
               <div className="mt-3 rounded bg-gray-100 p-2 font-mono text-xs break-all">
-                {apiKey}
+                {displayApiKey}
               </div>
             </div>
 
