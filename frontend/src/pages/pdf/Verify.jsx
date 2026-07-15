@@ -6,7 +6,7 @@ import { apiVerifyLogin } from '../../services/pdfService';
 export default function PDFVerify() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const [status, setStatus] = useState('verifying'); // 'verifying' | 'success' | 'error'
+  const [status, setStatus] = useState('verifying');
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -21,17 +21,10 @@ export default function PDFVerify() {
     const verify = async () => {
       try {
         const result = await apiVerifyLogin(code);
-
-        // Store the API key and user info
         localStorage.setItem('pdf_api_key', result.user.api_key);
         localStorage.setItem('pdf_user', JSON.stringify(result.user));
-
         setStatus('success');
-
-        // Redirect to dashboard after a short delay
-        setTimeout(() => {
-          navigate('/pdf/dashboard');
-        }, 1500);
+        setTimeout(() => navigate('/pdf/dashboard'), 1500);
       } catch (err) {
         setStatus('error');
         setError(err.message || 'Failed to verify login link.');
@@ -45,7 +38,7 @@ export default function PDFVerify() {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50">
         <div className="text-center">
-          <div className="mb-4 inline-block h-12 w-12 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" />
+          <div className="mb-4 inline-block h-12 w-12 animate-spin rounded-full border-4 border-indigo-600 border-t-transparent" />
           <h2 className="text-xl font-semibold text-gray-700">Verifying your login...</h2>
           <p className="mt-2 text-sm text-gray-500">Please wait while we log you in.</p>
         </div>
@@ -74,7 +67,7 @@ export default function PDFVerify() {
           <p className="mt-2 text-gray-600">{error}</p>
           <button
             onClick={() => navigate('/pdf/login')}
-            className="mt-6 inline-block rounded-md bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
+            className="mt-6 inline-block rounded-md bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-700"
           >
             Back to Login
           </button>

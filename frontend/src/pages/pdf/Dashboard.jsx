@@ -2,9 +2,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiGeneratePDF, apiListTemplates, apiLogout } from '../../services/pdfService';
-import { Button } from '../../components/ui/button';
-import { Input } from '../../components/ui/input';
-import { Textarea } from '../../components/ui/textarea';
 
 export default function PDFDashboard() {
   const navigate = useNavigate();
@@ -14,27 +11,21 @@ export default function PDFDashboard() {
   const [loading, setLoading] = useState(false);
   const [templatesLoading, setTemplatesLoading] = useState(false);
 
-  // Form state
   const [html, setHtml] = useState('<h1>Hello {{ name }}</h1>');
   const [context, setContext] = useState('{"name": "World"}');
   const [css, setCss] = useState('');
   const [filename, setFilename] = useState('document.pdf');
   const [templateSlug, setTemplateSlug] = useState('');
 
-  // Check authentication
   useEffect(() => {
     const storedKey = localStorage.getItem('pdf_api_key');
     const storedUser = localStorage.getItem('pdf_user');
-
     if (!storedKey) {
       navigate('/pdf/login');
       return;
     }
-
     setApiKey(storedKey);
     setUser(storedUser ? JSON.parse(storedUser) : null);
-
-    // Fetch templates
     fetchTemplates(storedKey);
   }, [navigate]);
 
@@ -53,35 +44,23 @@ export default function PDFDashboard() {
   const handleGenerate = async (e) => {
     e.preventDefault();
     setLoading(true);
-
     try {
       let contextData;
-      try {
-        contextData = JSON.parse(context);
-      } catch {
-        contextData = {};
-      }
-
+      try { contextData = JSON.parse(context); } catch { contextData = {}; }
       const params = {
         context: contextData,
         filename: filename || 'document.pdf',
       };
-
-      if (templateSlug) {
-        params.template_slug = templateSlug;
-      } else if (html) {
-        params.html = html;
-      } else {
+      if (templateSlug) params.template_slug = templateSlug;
+      else if (html) params.html = html;
+      else {
         alert('Please provide either HTML or select a template.');
         setLoading(false);
         return;
       }
-
       if (css) params.css = css;
 
       const pdfBlob = await apiGeneratePDF(params);
-
-      // Download the PDF
       const url = URL.createObjectURL(pdfBlob);
       const link = document.createElement('a');
       link.href = url;
@@ -119,12 +98,18 @@ export default function PDFDashboard() {
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <Button variant="outline" size="sm" onClick={copyApiKey}>
+            <button
+              onClick={copyApiKey}
+              className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            >
               Copy API Key
-            </Button>
-            <Button variant="destructive" size="sm" onClick={handleLogout}>
+            </button>
+            <button
+              onClick={handleLogout}
+              className="rounded-md bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700"
+            >
               Logout
-            </Button>
+            </button>
           </div>
         </div>
 
@@ -136,13 +121,11 @@ export default function PDFDashboard() {
         </div>
 
         <div className="grid gap-6 md:grid-cols-3">
-          {/* PDF Generator Form */}
           <div className="md:col-span-2">
             <div className="rounded-lg bg-white p-6 shadow">
               <h2 className="mb-4 text-lg font-semibold">Generate PDF</h2>
 
               <form onSubmit={handleGenerate} className="space-y-4">
-                {/* Template selection */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700">
                     Use stored template (optional)
@@ -162,16 +145,15 @@ export default function PDFDashboard() {
                   </select>
                 </div>
 
-                {/* HTML */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700">
                     HTML content
                   </label>
-                  <Textarea
+                  <textarea
                     value={html}
                     onChange={(e) => setHtml(e.target.value)}
                     rows={6}
-                    className="mt-1 font-mono text-sm"
+                    className="mt-1 w-full rounded-md border border-gray-300 p-2 font-mono text-sm"
                     placeholder="<h1>Hello {{ name }}</h1>"
                     disabled={!!templateSlug}
                   />
@@ -180,56 +162,57 @@ export default function PDFDashboard() {
                   </p>
                 </div>
 
-                {/* Context JSON */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700">
                     Context data (JSON)
                   </label>
-                  <Textarea
+                  <textarea
                     value={context}
                     onChange={(e) => setContext(e.target.value)}
                     rows={3}
-                    className="mt-1 font-mono text-sm"
+                    className="mt-1 w-full rounded-md border border-gray-300 p-2 font-mono text-sm"
                     placeholder='{"name": "World"}'
                   />
                 </div>
 
-                {/* Custom CSS */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700">
                     Custom CSS (optional)
                   </label>
-                  <Textarea
+                  <textarea
                     value={css}
                     onChange={(e) => setCss(e.target.value)}
                     rows={3}
-                    className="mt-1 font-mono text-sm"
+                    className="mt-1 w-full rounded-md border border-gray-300 p-2 font-mono text-sm"
                     placeholder="body { color: red; }"
                   />
                 </div>
 
-                {/* Filename */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700">
                     Filename
                   </label>
-                  <Input
+                  <input
+                    type="text"
                     value={filename}
                     onChange={(e) => setFilename(e.target.value)}
+                    className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2"
                     placeholder="document.pdf"
                   />
                 </div>
 
-                <Button type="submit" className="w-full" disabled={loading}>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+                >
                   {loading ? 'Generating...' : 'Generate PDF'}
-                </Button>
+                </button>
               </form>
             </div>
           </div>
 
-          {/* Sidebar */}
           <div className="space-y-6">
-            {/* API Key Info */}
             <div className="rounded-lg bg-white p-6 shadow">
               <h3 className="mb-2 font-semibold">Your API Key</h3>
               <p className="text-sm text-gray-600">
@@ -241,7 +224,6 @@ export default function PDFDashboard() {
               </div>
             </div>
 
-            {/* Quick Links */}
             <div className="rounded-lg bg-white p-6 shadow">
               <h3 className="mb-2 font-semibold">Quick Links</h3>
               <ul className="space-y-2 text-sm">
@@ -250,7 +232,7 @@ export default function PDFDashboard() {
                     href="https://api.franciscodes.com/admin/pdf_converter/"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-blue-600 hover:underline"
+                    className="text-indigo-600 hover:underline"
                   >
                     Manage Templates (Admin)
                   </a>
@@ -260,7 +242,7 @@ export default function PDFDashboard() {
                     href="https://api.franciscodes.com/pdf/api/pdf/generate/"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-blue-600 hover:underline"
+                    className="text-indigo-600 hover:underline"
                   >
                     API Documentation
                   </a>
