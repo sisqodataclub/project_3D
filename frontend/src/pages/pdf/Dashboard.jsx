@@ -1,12 +1,13 @@
-import React, { useState, useEffect } from 'react';
+// frontend/src/pages/pdf/Dashboard.jsx
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { apiGeneratePDF, apiListTemplates, apiLogout } from '../../services/pdfService';
+import { apiGeneratePDF, apiListTemplates, apiLogout, apiUploadDocument } from '../../services/pdfService';
 
 export default function PDFDashboard() {
   const navigate = useNavigate();
   const [apiKey, setApiKey] = useState('');
   const [user, setUser] = useState(null);
-  const [templates, setTemplates] = useState([]); // ✅ Always an array
+  const [templates, setTemplates] = useState([]);
   const [loading, setLoading] = useState(false);
   const [templatesLoading, setTemplatesLoading] = useState(false);
 
@@ -17,16 +18,18 @@ export default function PDFDashboard() {
   const [filename, setFilename] = useState('document.pdf');
   const [templateSlug, setTemplateSlug] = useState('');
 
-  // Check authentication
+  // 🆕 File upload state
+  const [uploadedFile, setUploadedFile] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef(null);
+
   useEffect(() => {
     const storedKey = localStorage.getItem('pdf_api_key');
     const storedUser = localStorage.getItem('pdf_user');
-
     if (!storedKey) {
       navigate('/pdf/login');
       return;
     }
-
     setApiKey(storedKey);
     setUser(storedUser ? JSON.parse(storedUser) : null);
     fetchTemplates();
@@ -37,7 +40,6 @@ export default function PDFDashboard() {
     setTemplatesLoading(true);
     try {
       const data = await apiListTemplates();
-      // ✅ Ensure data is always an array
       setTemplates(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error('Failed to fetch templates:', err);
@@ -52,27 +54,18 @@ export default function PDFDashboard() {
     setLoading(true);
     try {
       let contextData;
-      try {
-        contextData = JSON.parse(context);
-      } catch {
-        contextData = {};
-      }
-
+      try { contextData = JSON.parse(context); } catch { contextData = {}; }
       const params = {
         context: contextData,
         filename: filename || 'document.pdf',
       };
-
-      if (templateSlug) {
-        params.template_slug = templateSlug;
-      } else if (html) {
-        params.html = html;
-      } else {
+      if (templateSlug) params.template_slug = templateSlug;
+      else if (html) params.html = html;
+      else {
         alert('Please provide either HTML or select a template.');
         setLoading(false);
         return;
       }
-
       if (css) params.css = css;
 
       const pdfBlob = await apiGeneratePDF(params);
@@ -103,7 +96,38 @@ export default function PDFDashboard() {
     }
   };
 
-  // ✅ Guard against null apiKey when displaying
+  // 🆕 File upload handlers
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setUploadedFile(file);
+    }
+  };
+
+  const handleUpload = async (e) => {
+    e.preventDefault();
+    if (!uploadedFile) {
+      alert('Please select a file first.');
+      return;
+    }
+    setUploading(true);
+    try {
+      const pdfBlob = await apiUploadDocument(uploadedFile);
+      const url = URL.createObjectURL(pdfBlob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = uploadedFile.name.replace(/\.[^.]+$/, '') + '.pdf';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      alert(`Error converting document: ${err.message}`);
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const displayApiKey = apiKey || 'No API key found';
 
   return (
@@ -141,12 +165,12 @@ export default function PDFDashboard() {
         </div>
 
         <div className="grid gap-6 md:grid-cols-3">
+          {/* PDF Generator Form */}
           <div className="md:col-span-2">
             <div className="rounded-lg bg-white p-6 shadow">
-              <h2 className="mb-4 text-lg font-semibold">Generate PDF</h2>
+              <h2 className="mb-4 text-lg font-semibold">Generate PDF from HTML</h2>
 
               <form onSubmit={handleGenerate} className="space-y-4">
-                {/* Template selection */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700">
                     Use stored template (optional)
@@ -166,7 +190,6 @@ export default function PDFDashboard() {
                   </select>
                 </div>
 
-                {/* HTML */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700">
                     HTML content
@@ -184,7 +207,6 @@ export default function PDFDashboard() {
                   </p>
                 </div>
 
-                {/* Context JSON */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700">
                     Context data (JSON)
@@ -198,7 +220,6 @@ export default function PDFDashboard() {
                   />
                 </div>
 
-                {/* Custom CSS */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700">
                     Custom CSS (optional)
@@ -212,7 +233,6 @@ export default function PDFDashboard() {
                   />
                 </div>
 
-                {/* Filename */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700">
                     Filename
@@ -237,7 +257,43 @@ export default function PDFDashboard() {
             </div>
           </div>
 
+          {/* Sidebar */}
           <div className="space-y-6">
+            {/* 🆕 File Upload Section */}
+            <div className="rounded-lg bg-white p-6 shadow">
+              <h3 className="mb-2 font-semibold">Upload Document</h3>
+              <p className="mb-4 text-sm text-gray-600">
+                Upload a <strong>.docx</strong>, <strong>.md</strong>, <strong>.txt</strong>, or <strong>.html</strong> file to convert it to PDF.
+              </p>
+
+              <form onSubmit={handleUpload} className="space-y-4">
+                <div>
+                  <input
+                    type="file"
+                    accept=".docx,.doc,.md,.markdown,.txt,.text,.html,.htm"
+                    onChange={handleFileChange}
+                    ref={fileInputRef}
+                    className="block w-full text-sm text-gray-500 file:mr-4 file:rounded-md file:border-0 file:bg-indigo-50 file:px-4 file:py-2 file:text-indigo-700 hover:file:bg-indigo-100"
+                  />
+                </div>
+
+                {uploadedFile && (
+                  <p className="text-sm text-gray-600">
+                    Selected: <strong>{uploadedFile.name}</strong> ({(uploadedFile.size / 1024).toFixed(1)} KB)
+                  </p>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={!uploadedFile || uploading}
+                  className="w-full rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
+                >
+                  {uploading ? 'Converting...' : 'Convert to PDF'}
+                </button>
+              </form>
+            </div>
+
+            {/* API Key Info */}
             <div className="rounded-lg bg-white p-6 shadow">
               <h3 className="mb-2 font-semibold">Your API Key</h3>
               <p className="text-sm text-gray-600">
@@ -249,6 +305,7 @@ export default function PDFDashboard() {
               </div>
             </div>
 
+            {/* Quick Links */}
             <div className="rounded-lg bg-white p-6 shadow">
               <h3 className="mb-2 font-semibold">Quick Links</h3>
               <ul className="space-y-2 text-sm">
