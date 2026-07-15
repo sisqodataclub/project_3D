@@ -1,3 +1,4 @@
+// frontend/src/App.jsx
 import UkEconomyDashboard from "./pages/UkEconomyDashboard";
 import React, { useState } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
@@ -15,7 +16,12 @@ import BlogPost from "./pages/BlogPost";
 import CVManager from "./pages/CVManager";
 import CVDetail from "./pages/CVDetail";
 import JobApplicationDetail from "./pages/JobApplicationDetail";
-import CVLayout from "./pages/CVLayout"; // <-- NEW: Layout that provides HVT context
+import CVLayout from "./pages/CVLayout";
+
+// ============================================================
+// 🆕 PDF Converter pages
+// ============================================================
+import { PDFLogin, PDFVerify, PDFDashboard } from "./pages/pdf";
 
 import AreaSelectionPage from "./pages/AreaSelectionPage";
 import QuantitySelectionPage from "./pages/QuantitySelectionPage";
@@ -26,7 +32,6 @@ import PerfumeAnalyticsDashboard from "./pages/Dashboard";
 import ManVanAnalyticsDashboard from "./pages/ManVanAnalyticsDashboard";
 import ProjectsPage from "./pages/ProjectsPage";
 import NewsFeed from "./components/NewsFeed";
-
 
 import {
   About,
@@ -112,12 +117,20 @@ const App = () => {
               {/* Blog */}
               <Route path="/blog" element={<Blog />} />
 
-              {/* 🆕 CV Routes – wrapped with HVT context via CVLayout */}
+              {/* CV Routes – wrapped with HVT context */}
               <Route path="/cv" element={<CVLayout />}>
                 <Route index element={<CVManager />} />
                 <Route path=":id" element={<CVDetail />} />
                 <Route path="application/:id" element={<JobApplicationDetail />} />
               </Route>
+
+              {/* ============================================================
+                  🆕 PDF Converter Routes
+                  ============================================================ */}
+              <Route path="/pdf/login" element={<PDFLogin />} />
+              <Route path="/pdf/verify" element={<PDFVerify />} />
+              <Route path="/pdf/dashboard" element={<PDFDashboard />} />
+              <Route path="/pdf" element={<PDFDashboard />} />
             </Routes>
           </main>
 

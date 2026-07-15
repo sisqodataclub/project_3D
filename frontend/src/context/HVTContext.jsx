@@ -28,19 +28,11 @@ export const HVTProvider = ({ children }) => {
         setUser(data);
         return true;
       } else if (res.status === 401) {
-        // Try refresh
-        if (refreshToken) {
-          const refreshRes = await fetch(`${API_BASE}/token/refresh/`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ refresh: refreshToken }),
-          });
-          if (refreshRes.ok) {
-            const { access } = await refreshRes.json();
-            localStorage.setItem('hvt_access', access);
-            setAccessToken(access);
-            return await fetchUserInfo(access);
-          }
+        // Try to refresh the token
+        const refreshed = await refreshAccessToken();
+        if (refreshed) {
+          // Retry with new token
+          return await fetchUserInfo(accessToken);
         }
         logout();
         return false;
@@ -50,6 +42,30 @@ export const HVTProvider = ({ children }) => {
       }
     } catch {
       logout();
+      return false;
+    }
+  };
+
+  const refreshAccessToken = async () => {
+    const currentRefresh = refreshToken || localStorage.getItem('hvt_refresh');
+    if (!currentRefresh) return false;
+
+    try {
+      const refreshRes = await fetch(`${API_BASE}/token/refresh/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refresh: currentRefresh }),
+      });
+      if (refreshRes.ok) {
+        const { access } = await refreshRes.json();
+        if (access) {
+          localStorage.setItem('hvt_access', access);
+          setAccessToken(access);
+          return true;
+        }
+      }
+      return false;
+    } catch {
       return false;
     }
   };
@@ -77,6 +93,7 @@ export const HVTProvider = ({ children }) => {
     }
     const data = await res.json();
     const { access, refresh } = data;
+    // Store both tokens
     localStorage.setItem('hvt_access', access);
     localStorage.setItem('hvt_refresh', refresh);
     setAccessToken(access);
