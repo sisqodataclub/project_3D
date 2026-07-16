@@ -1,7 +1,14 @@
 // frontend/src/pages/pdf/Dashboard.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { apiGeneratePDF, apiListTemplates, apiLogout, apiUploadDocument } from '../../services/pdfService';
+import {
+  apiGeneratePDF,
+  apiListTemplates,
+  apiLogout,
+  apiUploadDocument,
+  apiGetUserInfo,
+  refreshUserStats,
+} from '../../services/pdfService';
 
 export default function PDFDashboard() {
   const navigate = useNavigate();
@@ -18,24 +25,50 @@ export default function PDFDashboard() {
   const [filename, setFilename] = useState('document.pdf');
   const [templateSlug, setTemplateSlug] = useState('');
 
-  // 🆕 File upload state
+  // File upload state
   const [uploadedFile, setUploadedFile] = useState(null);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef(null);
 
+  // ============================================================
+  // Fetch user info and templates on mount
+  // ============================================================
   useEffect(() => {
     const storedKey = localStorage.getItem('pdf_api_key');
     const storedUser = localStorage.getItem('pdf_user');
+
     if (!storedKey) {
       navigate('/pdf/login');
       return;
     }
+
     setApiKey(storedKey);
-    setUser(storedUser ? JSON.parse(storedUser) : null);
+
+    if (storedUser) {
+      setUser(JSON.parse(storedUser));
+    }
+
+    // Fetch fresh user info from backend
+    const fetchUserInfo = async () => {
+      try {
+        const data = await apiGetUserInfo();
+        setUser(data);
+        // Update local storage with fresh data
+        localStorage.setItem('pdf_user', JSON.stringify(data));
+      } catch (err) {
+        console.error('Failed to fetch user info:', err);
+        // If the error is due to expired API key, it will be handled by the interceptor
+      }
+    };
+
+    fetchUserInfo();
     fetchTemplates();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigate]);
 
+  // ============================================================
+  // Fetch templates
+  // ============================================================
   const fetchTemplates = async () => {
     setTemplatesLoading(true);
     try {
@@ -49,12 +82,19 @@ export default function PDFDashboard() {
     }
   };
 
+  // ============================================================
+  // Handle PDF generation from HTML
+  // ============================================================
   const handleGenerate = async (e) => {
     e.preventDefault();
     setLoading(true);
     try {
       let contextData;
-      try { contextData = JSON.parse(context); } catch { contextData = {}; }
+      try {
+        contextData = JSON.parse(context);
+      } catch {
+        contextData = {};
+      }
       const params = {
         context: contextData,
         filename: filename || 'document.pdf',
@@ -69,6 +109,8 @@ export default function PDFDashboard() {
       if (css) params.css = css;
 
       const pdfBlob = await apiGeneratePDF(params);
+
+      // Download PDF
       const url = URL.createObjectURL(pdfBlob);
       const link = document.createElement('a');
       link.href = url;
@@ -77,6 +119,11 @@ export default function PDFDashboard() {
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
+
+      // Refresh user stats (to update conversion count)
+      await refreshUserStats();
+      const updatedUser = JSON.parse(localStorage.getItem('pdf_user') || '{}');
+      setUser(updatedUser);
     } catch (err) {
       alert(`Error generating PDF: ${err.message}`);
     } finally {
@@ -84,19 +131,9 @@ export default function PDFDashboard() {
     }
   };
 
-  const handleLogout = () => {
-    apiLogout();
-    navigate('/pdf/login');
-  };
-
-  const copyApiKey = () => {
-    if (apiKey) {
-      navigator.clipboard.writeText(apiKey);
-      alert('API key copied to clipboard!');
-    }
-  };
-
-  // 🆕 File upload handlers
+  // ============================================================
+  // Handle file upload and conversion
+  // ============================================================
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -113,6 +150,8 @@ export default function PDFDashboard() {
     setUploading(true);
     try {
       const pdfBlob = await apiUploadDocument(uploadedFile);
+
+      // Download PDF
       const url = URL.createObjectURL(pdfBlob);
       const link = document.createElement('a');
       link.href = url;
@@ -121,10 +160,36 @@ export default function PDFDashboard() {
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
+
+      // Clear uploaded file
+      setUploadedFile(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+
+      // Refresh user stats (to update upload count)
+      await refreshUserStats();
+      const updatedUser = JSON.parse(localStorage.getItem('pdf_user') || '{}');
+      setUser(updatedUser);
     } catch (err) {
       alert(`Error converting document: ${err.message}`);
     } finally {
       setUploading(false);
+    }
+  };
+
+  // ============================================================
+  // Logout
+  // ============================================================
+  const handleLogout = () => {
+    apiLogout();
+    navigate('/pdf/login');
+  };
+
+  const copyApiKey = () => {
+    if (apiKey) {
+      navigator.clipboard.writeText(apiKey);
+      alert('API key copied to clipboard!');
     }
   };
 
@@ -133,15 +198,23 @@ export default function PDFDashboard() {
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="mx-auto max-w-4xl">
-        {/* Header */}
-        <div className="mb-6 flex items-center justify-between rounded-lg bg-white p-4 shadow">
+        {/* ============================================================
+            HEADER
+            ============================================================ */}
+        <div className="mb-6 flex flex-wrap items-center justify-between rounded-lg bg-white p-4 shadow">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">PDF Converter</h1>
             <p className="text-sm text-gray-500">
               Logged in as <strong>{user?.email || 'User'}</strong>
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="rounded-lg bg-gray-100 px-3 py-1 text-sm">
+              📄 {user?.total_conversions || 0} conversions
+            </span>
+            <span className="rounded-lg bg-gray-100 px-3 py-1 text-sm">
+              📤 {user?.total_uploads || 0} uploads
+            </span>
             <button
               onClick={copyApiKey}
               className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
@@ -157,7 +230,9 @@ export default function PDFDashboard() {
           </div>
         </div>
 
-        {/* API Key Display */}
+        {/* ============================================================
+            API KEY DISPLAY
+            ============================================================ */}
         <div className="mb-6 rounded-lg bg-gray-100 p-3 text-sm">
           <span className="font-mono text-gray-700">
             API Key: {displayApiKey.slice(0, 8)}...{displayApiKey.slice(-8)}
@@ -165,12 +240,15 @@ export default function PDFDashboard() {
         </div>
 
         <div className="grid gap-6 md:grid-cols-3">
-          {/* PDF Generator Form */}
+          {/* ============================================================
+              PDF GENERATOR FORM
+              ============================================================ */}
           <div className="md:col-span-2">
             <div className="rounded-lg bg-white p-6 shadow">
               <h2 className="mb-4 text-lg font-semibold">Generate PDF from HTML</h2>
 
               <form onSubmit={handleGenerate} className="space-y-4">
+                {/* Template selection */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700">
                     Use stored template (optional)
@@ -182,14 +260,16 @@ export default function PDFDashboard() {
                     disabled={templatesLoading}
                   >
                     <option value="">-- Use raw HTML instead --</option>
-                    {Array.isArray(templates) && templates.map((t) => (
-                      <option key={t.slug || t.id} value={t.slug}>
-                        {t.name}
-                      </option>
-                    ))}
+                    {Array.isArray(templates) &&
+                      templates.map((t) => (
+                        <option key={t.slug || t.id} value={t.slug}>
+                          {t.name}
+                        </option>
+                      ))}
                   </select>
                 </div>
 
+                {/* HTML content */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700">
                     HTML content
@@ -207,6 +287,7 @@ export default function PDFDashboard() {
                   </p>
                 </div>
 
+                {/* Context JSON */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700">
                     Context data (JSON)
@@ -220,6 +301,7 @@ export default function PDFDashboard() {
                   />
                 </div>
 
+                {/* Custom CSS */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700">
                     Custom CSS (optional)
@@ -233,6 +315,7 @@ export default function PDFDashboard() {
                   />
                 </div>
 
+                {/* Filename */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700">
                     Filename
@@ -257,13 +340,16 @@ export default function PDFDashboard() {
             </div>
           </div>
 
-          {/* Sidebar */}
+          {/* ============================================================
+              SIDEBAR
+              ============================================================ */}
           <div className="space-y-6">
-            {/* 🆕 File Upload Section */}
+            {/* File Upload */}
             <div className="rounded-lg bg-white p-6 shadow">
               <h3 className="mb-2 font-semibold">Upload Document</h3>
               <p className="mb-4 text-sm text-gray-600">
-                Upload a <strong>.docx</strong>, <strong>.md</strong>, <strong>.txt</strong>, or <strong>.html</strong> file to convert it to PDF.
+                Upload a <strong>.docx</strong>, <strong>.md</strong>, <strong>.txt</strong>, or <strong>.html</strong>{' '}
+                file to convert it to PDF.
               </p>
 
               <form onSubmit={handleUpload} className="space-y-4">
@@ -297,11 +383,28 @@ export default function PDFDashboard() {
             <div className="rounded-lg bg-white p-6 shadow">
               <h3 className="mb-2 font-semibold">Your API Key</h3>
               <p className="text-sm text-gray-600">
-                Use this key in the <code className="rounded bg-gray-100 px-1">X-API-Key</code> header
-                when calling the PDF API from other apps.
+                Use this key in the <code className="rounded bg-gray-100 px-1">X-API-Key</code> header when calling the
+                PDF API from other apps.
               </p>
-              <div className="mt-3 rounded bg-gray-100 p-2 font-mono text-xs break-all">
-                {displayApiKey}
+              <div className="mt-3 rounded bg-gray-100 p-2 font-mono text-xs break-all">{displayApiKey}</div>
+            </div>
+
+            {/* User Stats */}
+            <div className="rounded-lg bg-white p-6 shadow">
+              <h3 className="mb-2 font-semibold">Your Stats</h3>
+              <div className="space-y-1 text-sm">
+                <p>
+                  <span className="font-medium">Total Conversions:</span> {user?.total_conversions || 0}
+                </p>
+                <p>
+                  <span className="font-medium">Total Uploads:</span> {user?.total_uploads || 0}
+                </p>
+                <p>
+                  <span className="font-medium">Last Activity:</span>{' '}
+                  {user?.last_activity
+                    ? new Date(user.last_activity).toLocaleString()
+                    : 'Never'}
+                </p>
               </div>
             </div>
 
