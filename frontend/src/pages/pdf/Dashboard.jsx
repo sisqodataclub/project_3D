@@ -48,16 +48,13 @@ export default function PDFDashboard() {
       setUser(JSON.parse(storedUser));
     }
 
-    // Fetch fresh user info from backend
     const fetchUserInfo = async () => {
       try {
         const data = await apiGetUserInfo();
         setUser(data);
-        // Update local storage with fresh data
         localStorage.setItem('pdf_user', JSON.stringify(data));
       } catch (err) {
         console.error('Failed to fetch user info:', err);
-        // If the error is due to expired API key, it will be handled by the interceptor
       }
     };
 
@@ -66,9 +63,6 @@ export default function PDFDashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigate]);
 
-  // ============================================================
-  // Fetch templates
-  // ============================================================
   const fetchTemplates = async () => {
     setTemplatesLoading(true);
     try {
@@ -110,7 +104,6 @@ export default function PDFDashboard() {
 
       const pdfBlob = await apiGeneratePDF(params);
 
-      // Download PDF
       const url = URL.createObjectURL(pdfBlob);
       const link = document.createElement('a');
       link.href = url;
@@ -120,7 +113,6 @@ export default function PDFDashboard() {
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
 
-      // Refresh user stats (to update conversion count)
       await refreshUserStats();
       const updatedUser = JSON.parse(localStorage.getItem('pdf_user') || '{}');
       setUser(updatedUser);
@@ -151,7 +143,6 @@ export default function PDFDashboard() {
     try {
       const pdfBlob = await apiUploadDocument(uploadedFile);
 
-      // Download PDF
       const url = URL.createObjectURL(pdfBlob);
       const link = document.createElement('a');
       link.href = url;
@@ -161,13 +152,11 @@ export default function PDFDashboard() {
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
 
-      // Clear uploaded file
       setUploadedFile(null);
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
 
-      // Refresh user stats (to update upload count)
       await refreshUserStats();
       const updatedUser = JSON.parse(localStorage.getItem('pdf_user') || '{}');
       setUser(updatedUser);
@@ -179,7 +168,7 @@ export default function PDFDashboard() {
   };
 
   // ============================================================
-  // Logout
+  // Utility Functions
   // ============================================================
   const handleLogout = () => {
     apiLogout();
@@ -189,254 +178,263 @@ export default function PDFDashboard() {
   const copyApiKey = () => {
     if (apiKey) {
       navigator.clipboard.writeText(apiKey);
-      alert('API key copied to clipboard!');
+      // Ideally replace this with a modern toast notification in the future
+      alert('API key copied to clipboard!'); 
     }
   };
 
   const displayApiKey = apiKey || 'No API key found';
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="mx-auto max-w-4xl">
-        {/* ============================================================
-            HEADER
-            ============================================================ */}
-        <div className="mb-6 flex flex-wrap items-center justify-between rounded-lg bg-white p-4 shadow">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">PDF Converter</h1>
-            <p className="text-sm text-gray-500">
-              Logged in as <strong>{user?.email || 'User'}</strong>
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <span className="rounded-lg bg-gray-100 px-3 py-1 text-sm">
-              📄 {user?.total_conversions || 0} conversions
-            </span>
-            <span className="rounded-lg bg-gray-100 px-3 py-1 text-sm">
-              📤 {user?.total_uploads || 0} uploads
-            </span>
-            <button
-              onClick={copyApiKey}
-              className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
-            >
-              Copy API Key
-            </button>
-            <button
-              onClick={handleLogout}
-              className="rounded-md bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700"
-            >
-              Logout
-            </button>
+    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
+      {/* Top Navigation / Header */}
+      <header className="bg-white border-b border-slate-200 sticky top-0 z-10">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="flex h-16 items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-600 text-white shadow-sm">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
+              </div>
+              <div>
+                <h1 className="text-xl font-bold tracking-tight text-slate-900">Document Engine</h1>
+                <p className="text-xs font-medium text-slate-500">{user?.email || 'Authenticated User'}</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4">
+              <div className="hidden sm:flex items-center gap-4 border-r border-slate-200 pr-4 mr-2">
+                <div className="flex flex-col items-end">
+                  <span className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Conversions</span>
+                  <span className="text-sm font-bold text-slate-700">{user?.total_conversions || 0}</span>
+                </div>
+                <div className="flex flex-col items-end">
+                  <span className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Uploads</span>
+                  <span className="text-sm font-bold text-slate-700">{user?.total_uploads || 0}</span>
+                </div>
+              </div>
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-2 rounded-md bg-slate-100 px-3 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                <span className="hidden sm:inline">Logout</span>
+              </button>
+            </div>
           </div>
         </div>
+      </header>
 
-        {/* ============================================================
-            API KEY DISPLAY
-            ============================================================ */}
-        <div className="mb-6 rounded-lg bg-gray-100 p-3 text-sm">
-          <span className="font-mono text-gray-700">
-            API Key: {displayApiKey.slice(0, 8)}...{displayApiKey.slice(-8)}
-          </span>
-        </div>
-
-        <div className="grid gap-6 md:grid-cols-3">
+      {/* Main Content */}
+      <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
+          
           {/* ============================================================
-              PDF GENERATOR FORM
+              LEFT COLUMN: PRIMARY WORKSPACE
               ============================================================ */}
-          <div className="md:col-span-2">
-            <div className="rounded-lg bg-white p-6 shadow">
-              <h2 className="mb-4 text-lg font-semibold">Generate PDF from HTML</h2>
+          <div className="lg:col-span-8 space-y-8">
+            <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+              <div className="border-b border-slate-100 bg-slate-50/50 px-6 py-4">
+                <h2 className="text-lg font-semibold text-slate-800">Generate PDF from Data</h2>
+                <p className="text-sm text-slate-500 mt-1">Select a template or write raw HTML to compile a new document.</p>
+              </div>
 
-              <form onSubmit={handleGenerate} className="space-y-4">
-                {/* Template selection */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Use stored template (optional)
-                  </label>
-                  <select
-                    value={templateSlug}
-                    onChange={(e) => setTemplateSlug(e.target.value)}
-                    className="mt-1 w-full rounded-md border border-gray-300 p-2"
-                    disabled={templatesLoading}
-                  >
-                    <option value="">-- Use raw HTML instead --</option>
-                    {Array.isArray(templates) &&
-                      templates.map((t) => (
-                        <option key={t.slug || t.id} value={t.slug}>
-                          {t.name}
-                        </option>
-                      ))}
-                  </select>
-                </div>
+              <div className="p-6">
+                <form onSubmit={handleGenerate} className="space-y-6">
+                  {/* Template selection & Filename row */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-sm font-semibold text-slate-700 mb-2">
+                        Template Strategy
+                      </label>
+                      <select
+                        value={templateSlug}
+                        onChange={(e) => setTemplateSlug(e.target.value)}
+                        className="block w-full rounded-lg border-slate-300 bg-slate-50 py-2.5 pl-3 pr-10 text-sm focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 transition-all"
+                        disabled={templatesLoading}
+                      >
+                        <option value="">-- Manual HTML Input --</option>
+                        {Array.isArray(templates) &&
+                          templates.map((t) => (
+                            <option key={t.slug || t.id} value={t.slug}>
+                              {t.name}
+                            </option>
+                          ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-slate-700 mb-2">
+                        Output Filename
+                      </label>
+                      <input
+                        type="text"
+                        value={filename}
+                        onChange={(e) => setFilename(e.target.value)}
+                        className="block w-full rounded-lg border-slate-300 bg-slate-50 py-2.5 px-3 text-sm focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 transition-all"
+                        placeholder="report_2024.pdf"
+                      />
+                    </div>
+                  </div>
 
-                {/* HTML content */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    HTML content
-                  </label>
-                  <textarea
-                    value={html}
-                    onChange={(e) => setHtml(e.target.value)}
-                    rows={6}
-                    className="mt-1 w-full rounded-md border border-gray-300 p-2 font-mono text-sm"
-                    placeholder="<h1>Hello {{ name }}</h1>"
-                    disabled={!!templateSlug}
-                  />
-                  <p className="mt-1 text-xs text-gray-500">
-                    Use {'{{ variable }}'} syntax for dynamic content.
-                  </p>
-                </div>
+                  {/* HTML Content (Only visible if no template selected to reduce clutter) */}
+                  <div className={`transition-all duration-300 ${templateSlug ? 'opacity-50 pointer-events-none hidden' : 'block'}`}>
+                    <div className="flex justify-between items-end mb-2">
+                      <label className="block text-sm font-semibold text-slate-700">HTML Structure</label>
+                      <span className="text-xs text-slate-400 font-mono bg-slate-100 px-2 py-1 rounded">{'{{ variable }}'}</span>
+                    </div>
+                    <textarea
+                      value={html}
+                      onChange={(e) => setHtml(e.target.value)}
+                      rows={8}
+                      className="block w-full rounded-lg border-slate-300 bg-[#1e1e1e] text-slate-300 p-4 font-mono text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+                      placeholder="<h1>Hello {{ name }}</h1>"
+                      disabled={!!templateSlug}
+                    />
+                  </div>
 
-                {/* Context JSON */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Context data (JSON)
-                  </label>
-                  <textarea
-                    value={context}
-                    onChange={(e) => setContext(e.target.value)}
-                    rows={3}
-                    className="mt-1 w-full rounded-md border border-gray-300 p-2 font-mono text-sm"
-                    placeholder='{"name": "World"}'
-                  />
-                </div>
+                  {/* Context & CSS row */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-sm font-semibold text-slate-700 mb-2">
+                        Context (JSON)
+                      </label>
+                      <textarea
+                        value={context}
+                        onChange={(e) => setContext(e.target.value)}
+                        rows={5}
+                        className="block w-full rounded-lg border-slate-300 bg-slate-50 p-3 font-mono text-sm focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-500/20"
+                        placeholder='{"name": "World"}'
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-slate-700 mb-2">
+                        Global CSS
+                      </label>
+                      <textarea
+                        value={css}
+                        onChange={(e) => setCss(e.target.value)}
+                        rows={5}
+                        className="block w-full rounded-lg border-slate-300 bg-slate-50 p-3 font-mono text-sm focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-500/20"
+                        placeholder="body { font-family: sans-serif; }"
+                      />
+                    </div>
+                  </div>
 
-                {/* Custom CSS */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Custom CSS (optional)
-                  </label>
-                  <textarea
-                    value={css}
-                    onChange={(e) => setCss(e.target.value)}
-                    rows={3}
-                    className="mt-1 w-full rounded-md border border-gray-300 p-2 font-mono text-sm"
-                    placeholder="body { color: red; }"
-                  />
-                </div>
-
-                {/* Filename */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Filename
-                  </label>
-                  <input
-                    type="text"
-                    value={filename}
-                    onChange={(e) => setFilename(e.target.value)}
-                    className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2"
-                    placeholder="document.pdf"
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
-                >
-                  {loading ? 'Generating...' : 'Generate PDF'}
-                </button>
-              </form>
+                  <div className="pt-4 border-t border-slate-100">
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="w-full sm:w-auto flex items-center justify-center gap-2 rounded-lg bg-indigo-600 px-8 py-3 text-sm font-semibold text-white transition-all hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-70 disabled:cursor-not-allowed shadow-sm"
+                    >
+                      {loading ? (
+                        <>
+                          <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                          Compiling PDF...
+                        </>
+                      ) : (
+                        <>
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                          Generate & Download PDF
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </form>
+              </div>
             </div>
           </div>
 
           {/* ============================================================
-              SIDEBAR
+              RIGHT COLUMN: UTILITIES & SYSTEM
               ============================================================ */}
-          <div className="space-y-6">
-            {/* File Upload */}
-            <div className="rounded-lg bg-white p-6 shadow">
-              <h3 className="mb-2 font-semibold">Upload Document</h3>
-              <p className="mb-4 text-sm text-gray-600">
-                Upload a <strong>.docx</strong>, <strong>.md</strong>, <strong>.txt</strong>, or <strong>.html</strong>{' '}
-                file to convert it to PDF.
+          <div className="lg:col-span-4 space-y-6">
+            
+            {/* Upload Utility Card */}
+            <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+              <div className="flex items-center gap-2 mb-4">
+                <svg className="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                <h3 className="font-bold text-slate-800">Quick Convert</h3>
+              </div>
+              <p className="text-sm text-slate-500 mb-5">
+                Transform existing documents to PDF. Accepts <strong>.docx</strong>, <strong>.md</strong>, <strong>.txt</strong>, or <strong>.html</strong>.
               </p>
 
               <form onSubmit={handleUpload} className="space-y-4">
-                <div>
+                <div className="relative">
                   <input
                     type="file"
                     accept=".docx,.doc,.md,.markdown,.txt,.text,.html,.htm"
                     onChange={handleFileChange}
                     ref={fileInputRef}
-                    className="block w-full text-sm text-gray-500 file:mr-4 file:rounded-md file:border-0 file:bg-indigo-50 file:px-4 file:py-2 file:text-indigo-700 hover:file:bg-indigo-100"
+                    className="block w-full text-sm text-slate-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 transition-colors cursor-pointer"
                   />
                 </div>
 
                 {uploadedFile && (
-                  <p className="text-sm text-gray-600">
-                    Selected: <strong>{uploadedFile.name}</strong> ({(uploadedFile.size / 1024).toFixed(1)} KB)
-                  </p>
+                  <div className="bg-slate-50 rounded-md p-3 text-sm flex justify-between items-center border border-slate-100">
+                    <span className="truncate max-w-[200px] font-medium text-slate-700">{uploadedFile.name}</span>
+                    <span className="text-slate-400 text-xs">{(uploadedFile.size / 1024).toFixed(1)} KB</span>
+                  </div>
                 )}
 
                 <button
                   type="submit"
                   disabled={!uploadedFile || uploading}
-                  className="w-full rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
+                  className="w-full flex items-center justify-center gap-2 rounded-lg bg-slate-800 px-4 py-2.5 text-sm font-semibold text-white transition-all hover:bg-slate-900 focus:ring-2 focus:ring-slate-800 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {uploading ? 'Converting...' : 'Convert to PDF'}
+                  {uploading ? 'Processing...' : 'Convert to PDF'}
                 </button>
               </form>
             </div>
 
-            {/* API Key Info */}
-            <div className="rounded-lg bg-white p-6 shadow">
-              <h3 className="mb-2 font-semibold">Your API Key</h3>
-              <p className="text-sm text-gray-600">
-                Use this key in the <code className="rounded bg-gray-100 px-1">X-API-Key</code> header when calling the
-                PDF API from other apps.
+            {/* API Identity Card */}
+            <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+              <h3 className="font-bold text-slate-800 mb-3">API Credentials</h3>
+              <p className="text-sm text-slate-500 mb-4">
+                Authenticate programmatic requests using the <code className="bg-slate-100 text-pink-600 px-1.5 py-0.5 rounded text-xs font-mono">X-API-Key</code> header.
               </p>
-              <div className="mt-3 rounded bg-gray-100 p-2 font-mono text-xs break-all">{displayApiKey}</div>
-            </div>
-
-            {/* User Stats */}
-            <div className="rounded-lg bg-white p-6 shadow">
-              <h3 className="mb-2 font-semibold">Your Stats</h3>
-              <div className="space-y-1 text-sm">
-                <p>
-                  <span className="font-medium">Total Conversions:</span> {user?.total_conversions || 0}
-                </p>
-                <p>
-                  <span className="font-medium">Total Uploads:</span> {user?.total_uploads || 0}
-                </p>
-                <p>
-                  <span className="font-medium">Last Activity:</span>{' '}
-                  {user?.last_activity
-                    ? new Date(user.last_activity).toLocaleString()
-                    : 'Never'}
-                </p>
+              
+              <div className="flex items-center gap-2">
+                <div className="flex-1 bg-slate-50 border border-slate-200 rounded-lg p-2.5 font-mono text-xs text-slate-600 truncate">
+                  {displayApiKey}
+                </div>
+                <button
+                  onClick={copyApiKey}
+                  className="p-2.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-indigo-600 transition-colors focus:ring-2 focus:ring-indigo-500"
+                  title="Copy to clipboard"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                </button>
               </div>
             </div>
 
-            {/* Quick Links */}
-            <div className="rounded-lg bg-white p-6 shadow">
-              <h3 className="mb-2 font-semibold">Quick Links</h3>
-              <ul className="space-y-2 text-sm">
-                <li>
-                  <a
-                    href="https://api.franciscodes.com/admin/pdf_converter/"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-indigo-600 hover:underline"
-                  >
-                    Manage Templates (Admin)
-                  </a>
-                </li>
-                <li>
-                  <a
-                    href="https://api.franciscodes.com/pdf/api/pdf/generate/"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-indigo-600 hover:underline"
-                  >
-                    API Documentation
-                  </a>
-                </li>
-              </ul>
+            {/* System Links Card */}
+            <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+              <h3 className="font-bold text-slate-800 mb-4">Resources</h3>
+              <nav className="space-y-3">
+                <a
+                  href="https://api.franciscodes.com/admin/pdf_converter/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 text-sm text-slate-600 hover:text-indigo-600 transition-colors group"
+                >
+                  <svg className="w-4 h-4 text-slate-400 group-hover:text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                  Template Administration
+                </a>
+                <a
+                  href="https://api.franciscodes.com/pdf/api/pdf/generate/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 text-sm text-slate-600 hover:text-indigo-600 transition-colors group"
+                >
+                  <svg className="w-4 h-4 text-slate-400 group-hover:text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                  REST API Documentation
+                </a>
+              </nav>
             </div>
+
           </div>
         </div>
-      </div>
+      </main>
     </div>
   );
 }
