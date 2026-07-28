@@ -206,7 +206,7 @@ export default function CVManager() {
           ) : (
             <div className="flex items-center gap-3">
               <Link
-                to="/insights"
+                to="/cv/insights"
                 className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 rounded-lg font-semibold transition text-sm"
               >
                 📊 Insights

@@ -122,17 +122,16 @@ const App = () => {
               {/* Blog */}
               <Route path="/blog" element={<Blog />} />
 
-              {/* CV Routes – wrapped with HVT context */}
+              {/* ============================================================
+                  🆕 CV Routes – all under /cv, wrapped with HVT context via CVLayout
+                  ============================================================ */}
               <Route path="/cv" element={<CVLayout />}>
                 <Route index element={<CVManager />} />
                 <Route path=":id" element={<CVDetail />} />
                 <Route path="application/:id" element={<JobApplicationDetail />} />
+                {/* 🆕 Insights page under /cv/insights */}
+                <Route path="insights" element={<Insights />} />
               </Route>
-
-              {/* ============================================================
-                  🆕 Insights Page
-                  ============================================================ */}
-              <Route path="/insights" element={<Insights />} />
 
               {/* ============================================================
                   🆕 PDF Converter Routes
