@@ -23,6 +23,11 @@ import CVLayout from "./pages/CVLayout";
 // ============================================================
 import { PDFLogin, PDFVerify, PDFDashboard } from "./pages/pdf";
 
+// ============================================================
+// 🆕 Insights page
+// ============================================================
+import Insights from "./pages/Insights";
+
 import AreaSelectionPage from "./pages/AreaSelectionPage";
 import QuantitySelectionPage from "./pages/QuantitySelectionPage";
 import PersonalDetailsPage from "./pages/PersonalDetailsPage";
@@ -123,6 +128,11 @@ const App = () => {
                 <Route path=":id" element={<CVDetail />} />
                 <Route path="application/:id" element={<JobApplicationDetail />} />
               </Route>
+
+              {/* ============================================================
+                  🆕 Insights Page
+                  ============================================================ */}
+              <Route path="/insights" element={<Insights />} />
 
               {/* ============================================================
                   🆕 PDF Converter Routes

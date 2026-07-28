@@ -40,7 +40,6 @@ export default function CVManager() {
   // ---- Helper: update a nested array field ----
   const updateArrayField = (section, index, field, value) => {
     const updated = [...cvForm[section]];
-    // If we're updating is_current and it's true, set end_date to empty string.
     if (field === 'is_current' && value === true) {
       updated[index].end_date = '';
     }
@@ -91,7 +90,6 @@ export default function CVManager() {
               cleaned[key] = cleaned[key] || null;
             }
           });
-          // Ensure is_current is preserved and end_date is null if is_current is true
           if (cleaned.is_current) {
             cleaned.end_date = null;
           }
@@ -207,6 +205,12 @@ export default function CVManager() {
             </button>
           ) : (
             <div className="flex items-center gap-3">
+              <Link
+                to="/insights"
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 rounded-lg font-semibold transition text-sm"
+              >
+                📊 Insights
+              </Link>
               <span className="text-gray-300 text-sm">Hi, {user?.email || 'User'}</span>
               <button onClick={handleLogout} className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg font-semibold transition text-sm">
                 Logout
@@ -311,8 +315,7 @@ export default function CVManager() {
                           let inputType = 'text';
                           if (key.includes('date')) inputType = 'date';
                           if (key === 'url') inputType = 'url';
-                          
-                          // Special handling for is_current checkbox
+
                           if (key === 'is_current') {
                             return (
                               <div key={key} className="col-span-2 flex items-center gap-2 mt-1">
@@ -372,7 +375,7 @@ export default function CVManager() {
         )}
       </div>
 
-      {/* ---- JOB APPLICATION SECTION (unchanged) ---- */}
+      {/* ---- JOB APPLICATION SECTION ---- */}
       <div>
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-semibold">Your Job Applications ({applications.length})</h2>
