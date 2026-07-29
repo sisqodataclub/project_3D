@@ -51,7 +51,14 @@ export default function JobApplicationDetail() {
 
   // ---- Edit mode handlers ----
   const enableEditing = () => {
-    setEditData({ ...app });
+    const data = JSON.parse(JSON.stringify(app));
+    // Convert tags array to comma-separated string for editing
+    if (data.tags && Array.isArray(data.tags)) {
+      data.tag_names = data.tags.map((tag) => tag.name).join(', ');
+    } else {
+      data.tag_names = '';
+    }
+    setEditData(data);
     setIsEditing(true);
   };
 
@@ -67,7 +74,11 @@ export default function JobApplicationDetail() {
   const handleSave = async () => {
     setSaveLoading(true);
     try {
-      // Build payload: include tag_names if provided
+      // Convert tag_names string to array, filtering empty
+      const tagNames = editData.tag_names
+        ? editData.tag_names.split(',').map((t) => t.trim()).filter(Boolean)
+        : [];
+
       const payload = {
         job_link: editData.job_link,
         company: editData.company,
@@ -77,7 +88,7 @@ export default function JobApplicationDetail() {
         status: editData.status,
         resume_used: editData.resume_used || null,
         notes: editData.notes,
-        tag_names: editData.tag_names ? editData.tag_names.split(',').map(t => t.trim()).filter(Boolean) : [],
+        tag_names: tagNames,
       };
       const updated = await updateApplication(id, payload);
       setApp(updated);
@@ -139,7 +150,7 @@ export default function JobApplicationDetail() {
 
   // ---- View mode ----
   if (!isEditing) {
-    const usedResume = resumes.find(r => r.id === app.resume_used);
+    const usedResume = resumes.find((r) => r.id === app.resume_used);
     const resumeDisplay = usedResume ? (usedResume.title || usedResume.full_name) : null;
 
     return (
@@ -269,14 +280,26 @@ export default function JobApplicationDetail() {
         <div className="flex justify-between items-center mb-6">
           <Link to="/cv" className="text-blue-400 hover:text-blue-300 transition">← Back to CV Manager</Link>
           <div className="flex gap-3">
-            <button onClick={cancelEditing} className="px-4 py-2 bg-gray-600 hover:bg-gray-700 rounded-lg font-semibold transition">Cancel</button>
-            <button onClick={handleSave} disabled={saveLoading} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded-lg font-semibold transition">
+            <button onClick={cancelEditing} className="px-4 py-2 bg-gray-600 hover:bg-gray-700 rounded-lg font-semibold transition">
+              Cancel
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={saveLoading}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded-lg font-semibold transition"
+            >
               {saveLoading ? 'Saving...' : 'Save Changes'}
             </button>
           </div>
         </div>
 
-        <form onSubmit={(e) => { e.preventDefault(); handleSave(); }} className="bg-gray-900 rounded-2xl shadow-2xl border border-gray-800 p-8 space-y-6">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleSave();
+          }}
+          className="bg-gray-900 rounded-2xl shadow-2xl border border-gray-800 p-8 space-y-6"
+        >
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium mb-1">Company *</label>
@@ -360,7 +383,7 @@ export default function JobApplicationDetail() {
               <label className="block text-sm font-medium mb-1">Tags (comma-separated)</label>
               <input
                 type="text"
-                value={editData.tag_names ? editData.tag_names.join(', ') : ''}
+                value={editData.tag_names || ''}
                 onChange={(e) => handleFieldChange('tag_names', e.target.value)}
                 className="w-full p-2 bg-gray-700 rounded border border-gray-600"
                 placeholder="e.g., Remote, Hybrid, Urgent"
@@ -378,8 +401,16 @@ export default function JobApplicationDetail() {
           </div>
 
           <div className="flex justify-end gap-3">
-            <button type="button" onClick={cancelEditing} className="px-4 py-2 bg-gray-600 hover:bg-gray-700 rounded-lg">Cancel</button>
-            <button type="submit" disabled={saveLoading} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded-lg font-semibold">Save Changes</button>
+            <button type="button" onClick={cancelEditing} className="px-4 py-2 bg-gray-600 hover:bg-gray-700 rounded-lg">
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={saveLoading}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded-lg font-semibold"
+            >
+              {saveLoading ? 'Saving...' : 'Save Changes'}
+            </button>
           </div>
         </form>
       </div>
