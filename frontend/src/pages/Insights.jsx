@@ -27,6 +27,65 @@ const STATUS_COLORS = {
   rejected: '#f87171',
 };
 
+// ===== Funnel Chart Component =====
+const FunnelChart = ({ data }) => {
+  const maxCount = Math.max(...data.map(d => d.count), 1);
+
+  return (
+    <div className="space-y-3">
+      {data.map((item, idx) => {
+        // Skip Rejected – we show it as a separate bar at the bottom
+        if (item.stage === 'Rejected') {
+          return null;
+        }
+        return (
+          <div key={item.stage}>
+            <div className="flex items-center gap-4">
+              <div className="w-24 text-sm text-gray-400 text-right">{item.stage}</div>
+              <div className="flex-1 flex items-center gap-2">
+                <div
+                  className="h-8 bg-blue-500 rounded transition-all"
+                  style={{ width: `${(item.count / maxCount) * 100}%` }}
+                />
+                <span className="text-sm font-semibold text-white">{item.count}</span>
+                <span className="text-xs text-gray-400">({item.percentage}%)</span>
+                {idx < data.filter(d => d.stage !== 'Rejected').length - 1 && (
+                  <span className="text-xs text-gray-500 ml-2">
+                    – {Math.round(((data[idx].count - data[idx+1].count) / data[idx].count) * 100)}%
+                  </span>
+                )}
+              </div>
+            </div>
+            {idx < data.filter(d => d.stage !== 'Rejected').length - 1 && (
+              <div className="ml-28 text-gray-500 text-xs">↓</div>
+            )}
+          </div>
+        );
+      })}
+      {/* Rejected bar (always at the bottom) */}
+      {data.some(d => d.stage === 'Rejected') && (
+        <div className="flex items-center gap-4 mt-2 pt-2 border-t border-gray-700">
+          <div className="w-24 text-sm text-gray-400 text-right">Rejected</div>
+          <div className="flex-1 flex items-center gap-2">
+            <div
+              className="h-8 bg-red-500 rounded transition-all"
+              style={{
+                width: `${(data.find(d => d.stage === 'Rejected').count / maxCount) * 100}%`,
+              }}
+            />
+            <span className="text-sm font-semibold text-white">
+              {data.find(d => d.stage === 'Rejected').count}
+            </span>
+            <span className="text-xs text-gray-400">
+              ({data.find(d => d.stage === 'Rejected').percentage}%)
+            </span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 export default function Insights() {
   const { isAuthenticated, loading: authLoading } = useHVT();
   const { applications, resumes, loading: dataLoading } = useCVData();
@@ -41,7 +100,6 @@ export default function Insights() {
     const rejected = applications.filter((a) => a.status === 'rejected').length;
     const saved = applications.filter((a) => a.status === 'saved').length;
 
-    // For pie chart
     const pieData = [
       { name: 'Saved', value: saved, color: STATUS_COLORS.saved },
       { name: 'Applied', value: applied, color: STATUS_COLORS.applied },
@@ -51,7 +109,6 @@ export default function Insights() {
       { name: 'Rejected', value: rejected, color: STATUS_COLORS.rejected },
     ].filter((item) => item.value > 0);
 
-    // For bar chart (positive outcomes)
     const barData = [
       { name: 'Applied', value: applied, color: STATUS_COLORS.applied },
       { name: 'Follow-up', value: follow_up, color: STATUS_COLORS.follow_up },
@@ -60,14 +117,10 @@ export default function Insights() {
       { name: 'Rejected', value: rejected, color: STATUS_COLORS.rejected },
     ].filter((item) => item.value > 0);
 
-    // Response rate = all statuses except 'saved' and 'applied'
     const responded = interviewing + offered + rejected + follow_up;
     const responseRate = total > 0 ? Math.round((responded / total) * 100) : 0;
-
-    // Success rate = offered / total
     const successRate = total > 0 ? Math.round((offered / total) * 100) : 0;
 
-    // Average days to interview (for applications that reached interviewing or offered)
     const appsWithDates = applications.filter(
       (a) =>
         a.date_applied &&
@@ -82,11 +135,10 @@ export default function Insights() {
     }, 0);
     const avgDaysToInterview = appsWithDates.length > 0 ? Math.round(totalDays / appsWithDates.length) : 0;
 
-    // Monthly timeline
     const monthMap = {};
     applications.forEach((a) => {
       if (a.date_applied) {
-        const month = a.date_applied.slice(0, 7); // YYYY-MM
+        const month = a.date_applied.slice(0, 7);
         monthMap[month] = (monthMap[month] || 0) + 1;
       }
     });
@@ -109,6 +161,45 @@ export default function Insights() {
       avgDaysToInterview,
       timelineData,
     };
+  }, [applications]);
+
+  // ===== Funnel Data using highest_stage_reached =====
+  const funnelData = useMemo(() => {
+    const total = applications.filter(a => a.status !== 'saved').length;
+    if (total === 0) return [];
+
+    const stageCounts = {};
+    applications.forEach(app => {
+      const stage = app.highest_stage_reached || 0;
+      if (stage > 0) {
+        stageCounts[stage] = (stageCounts[stage] || 0) + 1;
+      }
+    });
+
+    const stageMap = {
+      1: 'Applied',
+      2: 'Follow-up',
+      3: 'Interviewing',
+      4: 'Offered',
+    };
+
+    const data = Object.entries(stageCounts).map(([stage, count]) => ({
+      stage: stageMap[stage] || `Stage ${stage}`,
+      count,
+      percentage: Math.round((count / total) * 100),
+    }));
+
+    // Add rejected count (rejected applications, regardless of highest stage)
+    const rejectedCount = applications.filter(a => a.status === 'rejected').length;
+    if (rejectedCount > 0) {
+      data.push({
+        stage: 'Rejected',
+        count: rejectedCount,
+        percentage: Math.round((rejectedCount / total) * 100),
+      });
+    }
+
+    return data;
   }, [applications]);
 
   // CV Performance
@@ -216,9 +307,18 @@ export default function Insights() {
           </div>
         </div>
 
-        {/* Charts: Pie, Bar, Timeline */}
+        {/* Funnel Chart */}
+        <div className="bg-gray-800 p-4 rounded-lg mb-8">
+          <h3 className="text-lg font-semibold text-white mb-4">📈 Application Funnel</h3>
+          {funnelData.length > 0 ? (
+            <FunnelChart data={funnelData} />
+          ) : (
+            <p className="text-gray-400">No applications to display.</p>
+          )}
+        </div>
+
+        {/* Charts */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          {/* Pie Chart */}
           <div className="bg-gray-800 p-4 rounded-lg h-80">
             <h3 className="text-lg font-semibold text-white mb-4">Status Distribution</h3>
             {stats.pieData.length > 0 ? (
@@ -246,8 +346,6 @@ export default function Insights() {
               <p className="text-gray-400">No data</p>
             )}
           </div>
-
-          {/* Bar Chart */}
           <div className="bg-gray-800 p-4 rounded-lg h-80">
             <h3 className="text-lg font-semibold text-white mb-4">Status Counts</h3>
             {stats.barData.length > 0 ? (
@@ -270,7 +368,7 @@ export default function Insights() {
           </div>
         </div>
 
-        {/* Timeline Chart */}
+        {/* Timeline */}
         {stats.timelineData.length > 0 && (
           <div className="bg-gray-800 p-4 rounded-lg h-64 mb-8">
             <h3 className="text-lg font-semibold text-white mb-4">Applications Over Time</h3>
@@ -301,7 +399,7 @@ export default function Insights() {
           </div>
         )}
 
-        {/* CV Performance Table */}
+        {/* CV Performance */}
         <div className="bg-gray-800 p-4 rounded-lg">
           <h3 className="text-lg font-semibold text-white mb-4">📄 CV Performance</h3>
           {cvPerformance.length > 0 ? (
