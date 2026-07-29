@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useCVData } from '../hooks/useCVData';
 import { useHVT } from '../context/HVTContext';
@@ -12,8 +12,11 @@ export default function CVManager() {
     loading: dataLoading,
     createResume,
     createApplication,
+    updateApplication,
     migrateGuestData,
     hasGuestData,
+    filterTag,
+    setFilterTag,
   } = useCVData();
 
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -155,6 +158,7 @@ export default function CVManager() {
     status: 'saved',
     resume_used: '',
     notes: '',
+    tag_names: '',
   });
 
   const handleJobChange = (e) => {
@@ -168,7 +172,15 @@ export default function CVManager() {
       return;
     }
     try {
-      await createApplication(jobFormData);
+      // Convert comma-separated tags to array
+      const tagNames = jobFormData.tag_names
+        ? jobFormData.tag_names.split(',').map(t => t.trim()).filter(Boolean)
+        : [];
+      const payload = {
+        ...jobFormData,
+        tag_names: tagNames,
+      };
+      await createApplication(payload);
       setJobFormData({
         job_link: '',
         company: '',
@@ -178,12 +190,42 @@ export default function CVManager() {
         status: 'saved',
         resume_used: '',
         notes: '',
+        tag_names: '',
       });
       setShowJobForm(false);
     } catch (err) {
       alert('Error creating application: ' + err.message);
     }
   };
+
+  // ---- Quick follow-up action ----
+  const handleMarkFollowUp = async (app) => {
+    if (!window.confirm(`Mark "${app.position} at ${app.company}" as "Follow-up"?`)) return;
+    try {
+      await updateApplication(app.id, {
+        ...app,
+        status: 'follow_up',
+      });
+      // Reload data by refetching (the hook will update)
+      // We can also manually update state, but the hook will re-fetch on filterTag change.
+      // We'll trigger a re-fetch by toggling filterTag? 
+      // Better: just call setFilterTag with the same value to force reload.
+      setFilterTag(filterTag || '');
+    } catch (err) {
+      alert('Error updating status: ' + err.message);
+    }
+  };
+
+  // ---- Compute unique tags for filter ----
+  const allTags = useMemo(() => {
+    const tags = new Set();
+    applications.forEach(app => {
+      if (app.tags) {
+        app.tags.forEach(tag => tags.add(tag.name));
+      }
+    });
+    return Array.from(tags).sort();
+  }, [applications]);
 
   const handleLogout = () => {
     logout();
@@ -219,6 +261,31 @@ export default function CVManager() {
           )}
         </div>
       </div>
+
+      {/* Tag Filter */}
+      {isAuthenticated && allTags.length > 0 && (
+        <div className="flex items-center gap-3 mb-6 bg-gray-800 p-3 rounded-lg">
+          <label className="text-sm text-gray-400">Filter by tag:</label>
+          <select
+            value={filterTag}
+            onChange={(e) => setFilterTag(e.target.value)}
+            className="bg-gray-700 text-white rounded border border-gray-600 p-1 text-sm"
+          >
+            <option value="">All</option>
+            {allTags.map(tag => (
+              <option key={tag} value={tag}>{tag}</option>
+            ))}
+          </select>
+          {filterTag && (
+            <button
+              onClick={() => setFilterTag('')}
+              className="text-xs text-red-400 hover:text-red-300"
+            >
+              Clear
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Migration Banner */}
       {isAuthenticated && hasGuestData && (
@@ -276,7 +343,7 @@ export default function CVManager() {
               <div><label className="block text-sm font-medium mb-1">Age</label><input type="number" name="age" value={cvForm.age} onChange={(e) => setCvForm({...cvForm, age: e.target.value})} className="w-full p-2 bg-gray-700 rounded border border-gray-600" /></div>
             </div>
 
-            {/* Dynamic Sections */}
+            {/* Dynamic Sections - unchanged */}
             {['educations', 'experiences', 'projects', 'skills', 'languages', 'achievements'].map((section) => {
               const label = section.charAt(0).toUpperCase() + section.slice(1);
               const items = cvForm[section];
@@ -406,9 +473,39 @@ export default function CVManager() {
                   <input type="date" name="deadline_date" value={jobFormData.deadline_date} onChange={handleJobChange} className="w-full p-2 bg-gray-700 rounded border border-gray-600" />
                 </div>
               </div>
-              <div><label className="block text-sm font-medium mb-1">Status</label><select name="status" value={jobFormData.status} onChange={handleJobChange} className="w-full p-2 bg-gray-700 rounded border border-gray-600"><option value="saved">Saved</option><option value="applied">Applied</option><option value="interviewing">Interviewing</option><option value="offered">Offered</option><option value="rejected">Rejected</option></select></div>
-              <div><label className="block text-sm font-medium mb-1">Resume Used</label><select name="resume_used" value={jobFormData.resume_used} onChange={handleJobChange} className="w-full p-2 bg-gray-700 rounded border border-gray-600"><option value="">None</option>{resumes.map((r) => <option key={r.id} value={r.id}>{r.title || r.full_name}</option>)}</select></div>
-              <div className="md:col-span-2"><label className="block text-sm font-medium mb-1">Notes</label><textarea name="notes" rows="2" value={jobFormData.notes} onChange={handleJobChange} className="w-full p-2 bg-gray-700 rounded border border-gray-600" /></div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Status</label>
+                <select name="status" value={jobFormData.status} onChange={handleJobChange} className="w-full p-2 bg-gray-700 rounded border border-gray-600">
+                  <option value="saved">Saved</option>
+                  <option value="applied">Applied</option>
+                  <option value="follow_up">Follow-up</option>
+                  <option value="interviewing">Interviewing</option>
+                  <option value="offered">Offered</option>
+                  <option value="rejected">Rejected</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Resume Used</label>
+                <select name="resume_used" value={jobFormData.resume_used} onChange={handleJobChange} className="w-full p-2 bg-gray-700 rounded border border-gray-600">
+                  <option value="">None</option>
+                  {resumes.map((r) => <option key={r.id} value={r.id}>{r.title || r.full_name}</option>)}
+                </select>
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium mb-1">Tags (comma-separated)</label>
+                <input
+                  type="text"
+                  name="tag_names"
+                  value={jobFormData.tag_names}
+                  onChange={handleJobChange}
+                  className="w-full p-2 bg-gray-700 rounded border border-gray-600"
+                  placeholder="e.g., Remote, Hybrid, Urgent"
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium mb-1">Notes</label>
+                <textarea name="notes" rows="2" value={jobFormData.notes} onChange={handleJobChange} className="w-full p-2 bg-gray-700 rounded border border-gray-600" />
+              </div>
             </div>
             <button type="submit" className="px-6 py-2 bg-green-600 hover:bg-green-700 rounded-lg font-semibold transition">Create Application</button>
           </form>
@@ -418,20 +515,85 @@ export default function CVManager() {
           <p className="text-gray-400">No applications yet. {isAuthenticated ? 'Create one above.' : 'Login to track applications.'}</p>
         ) : (
           <div className="grid gap-4 md:grid-cols-2">
-            {applications.map((app) => (
-              <Link to={`/cv/application/${app.id}`} key={app.id} className="block transition hover:scale-[1.02]">
-                <div className="bg-gray-800 p-4 rounded-lg shadow cursor-pointer">
-                  <h3 className="text-lg font-bold">{app.position} at {app.company}</h3>
-                  <p className="text-sm text-gray-300">Status: <span className={`font-semibold ${app.status === 'rejected' ? 'text-red-400' : app.status === 'offered' ? 'text-green-400' : app.status === 'interviewing' ? 'text-yellow-400' : 'text-blue-400'}`}>{app.status}</span></p>
-                  <p className="text-sm text-gray-400">🔗 <a href={app.job_link} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline" onClick={(e) => e.stopPropagation()}>View Job</a></p>
-                  {app.notes && <p className="text-sm text-gray-400 mt-1">📝 {app.notes}</p>}
-                  <p className="text-xs text-gray-500 mt-2">
-                    Applied: {app.date_applied ? new Date(app.date_applied).toLocaleDateString() : 'N/A'}
-                    {app.deadline_date && ` · Deadline: ${new Date(app.deadline_date).toLocaleDateString()}`}
-                  </p>
-                </div>
-              </Link>
-            ))}
+            {applications.map((app) => {
+              const daysSinceApplied = app.date_applied
+                ? Math.floor((new Date() - new Date(app.date_applied)) / (1000 * 60 * 60 * 24))
+                : null;
+              const needsFollowUp = app.status === 'applied' && daysSinceApplied !== null && daysSinceApplied > 21;
+
+              return (
+                <Link to={`/cv/application/${app.id}`} key={app.id} className="block transition hover:scale-[1.02]">
+                  <div className="bg-gray-800 p-4 rounded-lg shadow cursor-pointer relative">
+                    <div className="flex justify-between items-start">
+                      <h3 className="text-lg font-bold">{app.position} at {app.company}</h3>
+                      {needsFollowUp && (
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault();
+                            handleMarkFollowUp(app);
+                          }}
+                          className="text-xs bg-red-500/20 text-red-400 px-2 py-1 rounded hover:bg-red-500/30 transition"
+                        >
+                          Follow-up
+                        </button>
+                      )}
+                    </div>
+                    <p className="text-sm text-gray-300">
+                      Status:{' '}
+                      <span
+                        className={`font-semibold ${
+                          app.status === 'rejected'
+                            ? 'text-red-400'
+                            : app.status === 'offered'
+                            ? 'text-green-400'
+                            : app.status === 'interviewing'
+                            ? 'text-yellow-400'
+                            : app.status === 'follow_up'
+                            ? 'text-purple-400'
+                            : 'text-blue-400'
+                        }`}
+                      >
+                        {app.status.charAt(0).toUpperCase() + app.status.slice(1)}
+                      </span>
+                    </p>
+                    <p className="text-sm text-gray-400">
+                      🔗{' '}
+                      <a
+                        href={app.job_link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-400 hover:underline"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        View Job
+                      </a>
+                    </p>
+                    {app.tags && app.tags.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {app.tags.map((tag) => (
+                          <span
+                            key={tag.id}
+                            className="text-xs bg-indigo-900/30 text-indigo-300 px-2 py-0.5 rounded-full"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              setFilterTag(tag.name);
+                            }}
+                          >
+                            #{tag.name}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    {app.notes && <p className="text-sm text-gray-400 mt-1">📝 {app.notes}</p>}
+                    <p className="text-xs text-gray-500 mt-2">
+                      Applied: {app.date_applied ? new Date(app.date_applied).toLocaleDateString() : 'N/A'}
+                      {app.deadline_date && ` · Deadline: ${new Date(app.deadline_date).toLocaleDateString()}`}
+                      {needsFollowUp && ` · ${daysSinceApplied} days ago`}
+                    </p>
+                  </div>
+                </Link>
+              );
+            })}
           </div>
         )}
       </div>

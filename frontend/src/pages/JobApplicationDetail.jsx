@@ -67,6 +67,7 @@ export default function JobApplicationDetail() {
   const handleSave = async () => {
     setSaveLoading(true);
     try {
+      // Build payload: include tag_names if provided
       const payload = {
         job_link: editData.job_link,
         company: editData.company,
@@ -76,6 +77,7 @@ export default function JobApplicationDetail() {
         status: editData.status,
         resume_used: editData.resume_used || null,
         notes: editData.notes,
+        tag_names: editData.tag_names ? editData.tag_names.split(',').map(t => t.trim()).filter(Boolean) : [],
       };
       const updated = await updateApplication(id, payload);
       setApp(updated);
@@ -91,6 +93,7 @@ export default function JobApplicationDetail() {
   const statusColors = {
     saved: 'text-blue-400 border-blue-400',
     applied: 'text-yellow-400 border-yellow-400',
+    follow_up: 'text-purple-400 border-purple-400',
     interviewing: 'text-orange-400 border-orange-400',
     offered: 'text-green-400 border-green-400',
     rejected: 'text-red-400 border-red-400',
@@ -117,15 +120,31 @@ export default function JobApplicationDetail() {
     return <div className="min-h-screen flex items-center justify-center bg-[#0b0e14] text-slate-100"><p>No application data found.</p></div>;
   }
 
+  // ---- Build timeline events ----
+  const timelineEvents = [];
+  if (app.date_applied) {
+    timelineEvents.push({
+      label: 'Applied',
+      date: app.date_applied,
+      icon: '📤',
+    });
+  }
+  if (app.status_updated_at && app.status !== 'saved' && app.status !== 'applied') {
+    timelineEvents.push({
+      label: app.status.charAt(0).toUpperCase() + app.status.slice(1),
+      date: app.status_updated_at,
+      icon: app.status === 'offered' ? '🎉' : app.status === 'rejected' ? '❌' : '🔄',
+    });
+  }
+
   // ---- View mode ----
   if (!isEditing) {
-    // Find the resume name for display
     const usedResume = resumes.find(r => r.id === app.resume_used);
     const resumeDisplay = usedResume ? (usedResume.title || usedResume.full_name) : null;
 
     return (
       <div className="min-h-screen bg-[#0b0e14] text-slate-100 py-10 px-4">
-        <div className="max-w-3xl mx-auto">
+        <div className="max-w-4xl mx-auto">
           <div className="flex justify-between items-center mb-6">
             <Link to="/cv" className="text-blue-400 hover:text-blue-300 transition">
               ← Back to CV Manager
@@ -141,63 +160,101 @@ export default function JobApplicationDetail() {
             </button>
           </div>
 
-          <div className="bg-gray-900 rounded-2xl shadow-2xl border border-gray-800 p-8">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-              <div>
-                <h1 className="text-3xl font-bold">{app.position}</h1>
-                <p className="text-xl text-gray-400">{app.company}</p>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Main content */}
+            <div className="lg:col-span-2 bg-gray-900 rounded-2xl shadow-2xl border border-gray-800 p-8">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                <div>
+                  <h1 className="text-3xl font-bold">{app.position}</h1>
+                  <p className="text-xl text-gray-400">{app.company}</p>
+                </div>
+                <span
+                  className={`px-4 py-2 rounded-full text-sm font-semibold border ${
+                    statusColors[app.status] || 'text-gray-300 border-gray-300'
+                  }`}
+                >
+                  {app.status.charAt(0).toUpperCase() + app.status.slice(1)}
+                </span>
               </div>
-              <span
-                className={`px-4 py-2 rounded-full text-sm font-semibold border ${
-                  statusColors[app.status] || 'text-gray-300 border-gray-300'
-                }`}
-              >
-                {app.status.charAt(0).toUpperCase() + app.status.slice(1)}
-              </span>
+
+              <div className="space-y-4 text-gray-300">
+                <div>
+                  <span className="font-semibold text-white">Job Link:</span>
+                  <a
+                    href={app.job_link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-400 hover:underline ml-2 break-all"
+                  >
+                    {app.job_link}
+                  </a>
+                </div>
+                {app.date_applied && (
+                  <div>
+                    <span className="font-semibold text-white">Date Applied:</span>
+                    <span className="ml-2">{new Date(app.date_applied).toLocaleDateString()}</span>
+                  </div>
+                )}
+                {app.deadline_date && (
+                  <div>
+                    <span className="font-semibold text-white">Deadline:</span>
+                    <span className="ml-2">{new Date(app.deadline_date).toLocaleDateString()}</span>
+                  </div>
+                )}
+                {resumeDisplay && (
+                  <div>
+                    <span className="font-semibold text-white">Resume Used:</span>
+                    <span className="ml-2">{resumeDisplay}</span>
+                  </div>
+                )}
+                {app.tags && app.tags.length > 0 && (
+                  <div>
+                    <span className="font-semibold text-white block mb-1">Tags:</span>
+                    <div className="flex flex-wrap gap-2">
+                      {app.tags.map((tag) => (
+                        <span
+                          key={tag.id}
+                          className="px-3 py-1 bg-indigo-900/50 text-indigo-300 rounded-full text-sm"
+                        >
+                          {tag.name}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {app.notes && (
+                  <div>
+                    <span className="font-semibold text-white">Notes:</span>
+                    <p className="mt-1 bg-gray-800 p-3 rounded border border-gray-700 whitespace-pre-wrap">
+                      {app.notes}
+                    </p>
+                  </div>
+                )}
+                <div className="text-xs text-gray-500 pt-4 border-t border-gray-700">
+                  Created: {new Date(app.created_at).toLocaleString()} &middot;
+                  Updated: {new Date(app.updated_at).toLocaleString()}
+                </div>
+              </div>
             </div>
 
-            <div className="space-y-4 text-gray-300">
-              <div>
-                <span className="font-semibold text-white">Job Link:</span>
-                <a
-                  href={app.job_link}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-blue-400 hover:underline ml-2 break-all"
-                >
-                  {app.job_link}
-                </a>
-              </div>
-              {app.date_applied && (
-                <div>
-                  <span className="font-semibold text-white">Date Applied:</span>
-                  <span className="ml-2">{new Date(app.date_applied).toLocaleDateString()}</span>
+            {/* Timeline sidebar */}
+            <div className="bg-gray-900 rounded-2xl shadow-2xl border border-gray-800 p-6">
+              <h3 className="text-lg font-semibold text-white mb-4">📅 Timeline</h3>
+              {timelineEvents.length > 0 ? (
+                <div className="relative border-l border-gray-600 ml-3 pl-6 space-y-6">
+                  {timelineEvents.map((event, idx) => (
+                    <div key={idx} className="relative">
+                      <div className="absolute -left-8 w-4 h-4 rounded-full bg-blue-500 flex items-center justify-center text-xs">
+                        {event.icon}
+                      </div>
+                      <p className="text-sm font-semibold text-white">{event.label}</p>
+                      <p className="text-xs text-gray-400">{new Date(event.date).toLocaleDateString()}</p>
+                    </div>
+                  ))}
                 </div>
+              ) : (
+                <p className="text-gray-400 text-sm">No timeline events yet.</p>
               )}
-              {app.deadline_date && (
-                <div>
-                  <span className="font-semibold text-white">Deadline:</span>
-                  <span className="ml-2">{new Date(app.deadline_date).toLocaleDateString()}</span>
-                </div>
-              )}
-              {resumeDisplay && (
-                <div>
-                  <span className="font-semibold text-white">Resume Used:</span>
-                  <span className="ml-2">{resumeDisplay}</span>
-                </div>
-              )}
-              {app.notes && (
-                <div>
-                  <span className="font-semibold text-white">Notes:</span>
-                  <p className="mt-1 bg-gray-800 p-3 rounded border border-gray-700 whitespace-pre-wrap">
-                    {app.notes}
-                  </p>
-                </div>
-              )}
-              <div className="text-xs text-gray-500 pt-4 border-t border-gray-700">
-                Created: {new Date(app.created_at).toLocaleString()} &middot;
-                Updated: {new Date(app.updated_at).toLocaleString()}
-              </div>
             </div>
           </div>
         </div>
@@ -278,6 +335,7 @@ export default function JobApplicationDetail() {
               >
                 <option value="saved">Saved</option>
                 <option value="applied">Applied</option>
+                <option value="follow_up">Follow-up</option>
                 <option value="interviewing">Interviewing</option>
                 <option value="offered">Offered</option>
                 <option value="rejected">Rejected</option>
@@ -297,6 +355,16 @@ export default function JobApplicationDetail() {
                   </option>
                 ))}
               </select>
+            </div>
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium mb-1">Tags (comma-separated)</label>
+              <input
+                type="text"
+                value={editData.tag_names ? editData.tag_names.join(', ') : ''}
+                onChange={(e) => handleFieldChange('tag_names', e.target.value)}
+                className="w-full p-2 bg-gray-700 rounded border border-gray-600"
+                placeholder="e.g., Remote, Hybrid, Urgent"
+              />
             </div>
             <div className="md:col-span-2">
               <label className="block text-sm font-medium mb-1">Notes</label>

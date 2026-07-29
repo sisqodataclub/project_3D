@@ -10,6 +10,7 @@ export function useCVData() {
   const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [hasGuestData, setHasGuestData] = useState(false);
+  const [filterTag, setFilterTag] = useState('');
 
   // Load data based on auth state
   useEffect(() => {
@@ -17,11 +18,12 @@ export function useCVData() {
       setLoading(true);
       if (isAuthenticated && accessToken) {
         try {
+          const tagParam = filterTag ? `?tag=${encodeURIComponent(filterTag)}` : '';
           const [resumesRes, appsRes] = await Promise.all([
             fetch(`${API_BASE}/resumes/`, {
               headers: { Authorization: `Bearer ${accessToken}` },
             }),
-            fetch(`${API_BASE}/applications/`, {
+            fetch(`${API_BASE}/applications/${tagParam}`, {
               headers: { Authorization: `Bearer ${accessToken}` },
             }),
           ]);
@@ -52,7 +54,7 @@ export function useCVData() {
       setLoading(false);
     };
     loadData();
-  }, [isAuthenticated, accessToken]);
+  }, [isAuthenticated, accessToken, filterTag]);
 
   // ---- Create Resume ----
   const createResume = async (data) => {
@@ -230,11 +232,13 @@ export function useCVData() {
     resumes,
     applications,
     loading,
+    filterTag,
+    setFilterTag,
     createResume,
     updateResume,
     deleteResume,
     createApplication,
-    updateApplication,   // <-- new
+    updateApplication,
     migrateGuestData,
     hasGuestData,
   };
