@@ -1,5 +1,5 @@
 // frontend/src/pages/CVDetail.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -50,10 +50,11 @@ export default function CVDetail() {
   const [saveLoading, setSaveLoading] = useState(false);
   const [previewStates, setPreviewStates] = useState({});
 
-  // ---- AI Analysis state ----
+  // ---- AI Analysis state (polling) ----
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState(null);
-  const [progressLogs, setProgressLogs] = useState([]);
+  const [progressMessage, setProgressMessage] = useState('');
+  const pollingRef = useRef(null);   // holds the timeout ID
 
   const togglePreview = (sectionName, index) => {
     const key = `${sectionName}-${index}`;
@@ -81,9 +82,8 @@ export default function CVDetail() {
           }
           setResume(data);
           setEditData(JSON.parse(JSON.stringify(data)));
-          // Reset AI state when loading new resume
           setAnalysisResult(null);
-          setProgressLogs([]);
+          setProgressMessage('');
         } else if (res.status === 404) {
           setError('Resume not found.');
         } else {
@@ -98,12 +98,16 @@ export default function CVDetail() {
     fetchResume();
   }, [id, isAuthenticated, accessToken, authLoading]);
 
-  // ---------- AI Analysis ----------
+  // ---------- AI Analysis (Polling) ----------
   const handleAnalyze = async () => {
     if (!resume) return;
+
+    // Cancel any existing poll
+    if (pollingRef.current) clearTimeout(pollingRef.current);
+
     setIsAnalyzing(true);
     setAnalysisResult(null);
-    setProgressLogs([]);
+    setProgressMessage('Starting AI analysis...');
 
     try {
       // Prepare a condensed version of the CV for the AI
@@ -134,50 +138,74 @@ export default function CVDetail() {
       if (!startRes.ok) throw new Error('Failed to start analysis');
       const { task_id } = await startRes.json();
 
-      // 2. Open SSE stream
-      const eventSource = new EventSource(`${API_BASE}/ai/stream/${task_id}/`, {
-        // EventSource doesn't support custom headers, but it's fine for this use case
-        // The stream endpoint doesn't require authentication because it's proxied.
-      });
+      setProgressMessage('AI is analyzing your CV...');
 
-      eventSource.onmessage = (event) => {
-        const data = JSON.parse(event.data);
-        // data can be a progress message or the final result
-        if (data.status === 'COMPLETE') {
-          // Mission finished – fetch the report
-          fetch(`${API_BASE}/ai/report/${task_id}/`, {
+      // 2. Poll for the result
+      let attempts = 0;
+      const maxAttempts = 120;   // 120 × 5s = 10 minutes
+      const pollInterval = 5000; // 5 seconds
+
+      const poll = async () => {
+        attempts++;
+        try {
+          const reportRes = await fetch(`${API_BASE}/ai/report/${task_id}/`, {
             headers: { Authorization: `Bearer ${accessToken}` },
-          })
-            .then(res => res.json())
-            .then(report => {
-              setAnalysisResult(report);
-              setIsAnalyzing(false);
-              eventSource.close();
-            })
-            .catch(err => {
-              console.error('Failed to fetch report:', err);
-              setIsAnalyzing(false);
-              eventSource.close();
-            });
-        } else if (data.message) {
-          // Progress log
-          setProgressLogs((prev) => [...prev, data.message]);
+          });
+
+          if (reportRes.ok) {
+            // Success – report is ready
+            const report = await reportRes.json();
+            setAnalysisResult(report);
+            setIsAnalyzing(false);
+            setProgressMessage('');
+            pollingRef.current = null;
+            return;
+          }
+
+          if (reportRes.status === 404) {
+            // Still processing – cycle through messages
+            const messages = [
+              'AI is analyzing your CV...',
+              'DeepSeek is thinking...',
+              'Almost there...',
+              'Polishing the feedback...',
+            ];
+            setProgressMessage(messages[attempts % messages.length]);
+          } else {
+            throw new Error('Failed to fetch report');
+          }
+
+          // Continue polling if not exceeded max attempts
+          if (attempts < maxAttempts) {
+            pollingRef.current = setTimeout(poll, pollInterval);
+          } else {
+            throw new Error('Analysis timed out (10 minutes). Please try again.');
+          }
+        } catch (err) {
+          console.error('Polling error:', err);
+          setIsAnalyzing(false);
+          setProgressMessage('');
+          alert('Error during analysis: ' + err.message);
+          pollingRef.current = null;
         }
       };
 
-      eventSource.onerror = () => {
-        setIsAnalyzing(false);
-        eventSource.close();
-      };
-
-      // Save the eventSource so we can close it if needed
-      window.__aiEventSource = eventSource;
+      // Start the polling loop
+      pollingRef.current = setTimeout(poll, pollInterval);
     } catch (err) {
-      console.error('AI analysis error:', err);
+      console.error('Analysis start error:', err);
       setIsAnalyzing(false);
-      alert('Failed to start AI analysis. Please try again.');
+      setProgressMessage('');
+      alert('Failed to start analysis: ' + err.message);
     }
   };
+
+  // Cleanup polling on unmount
+  useEffect(() => {
+    return () => {
+      if (pollingRef.current) clearTimeout(pollingRef.current);
+    };
+  }, []);
 
   // ---- Edit mode handlers (unchanged) ----
   const enableEditing = () => {
@@ -202,7 +230,6 @@ export default function CVDetail() {
 
   const handleNestedChange = (section, index, field, value) => {
     const updated = [...editData[section]];
-    // If we're updating is_current and it's true, clear end_date
     if (section === 'experiences' && field === 'is_current' && value === true) {
       updated[index].end_date = '';
     }
@@ -266,7 +293,6 @@ export default function CVDetail() {
                 cleaned[key] = cleaned[key] || null;
               }
             });
-            // If is_current is true, ensure end_date is null
             if (cleaned.is_current) {
               cleaned.end_date = null;
             }
@@ -547,14 +573,13 @@ export default function CVDetail() {
           {isAnalyzing && (
             <div className="bg-gray-800 p-4 rounded-lg mb-6">
               <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                <span className="animate-spin">⟳</span> AI is analyzing your CV...
+                <span className="animate-spin">⟳</span> {progressMessage}
               </h3>
-              <div className="mt-2 text-sm text-gray-300 max-h-40 overflow-y-auto">
-                {progressLogs.map((log, i) => (
-                  <div key={i} className="border-b border-gray-700 py-1">
-                    {log}
-                  </div>
-                ))}
+              <div className="mt-2">
+                <div className="w-full bg-gray-700 rounded h-1.5">
+                  <div className="bg-blue-500 h-1.5 rounded transition-all duration-500" style={{ width: '60%' }} />
+                </div>
+                <p className="text-xs text-gray-400 mt-1">This may take up to 10 minutes</p>
               </div>
             </div>
           )}
