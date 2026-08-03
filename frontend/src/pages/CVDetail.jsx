@@ -1,6 +1,4 @@
-// Full CVDetail.jsx with section reordering, title support, duplicate functionality,
-// Markdown rendering for descriptions, preview toggle, and "currently working" support.
-
+// frontend/src/pages/CVDetail.jsx
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
@@ -20,7 +18,7 @@ const SECTION_LABELS = {
   achievements: 'Achievements',
 };
 
-// ---------- Markdown Component ----------
+// Markdown component (unchanged)
 const MarkdownContent = ({ children, className = '' }) => {
   if (!children) return null;
   return (
@@ -38,7 +36,6 @@ const MarkdownContent = ({ children, className = '' }) => {
   );
 };
 
-// ---------- Main Component ----------
 export default function CVDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -51,9 +48,12 @@ export default function CVDetail() {
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState(null);
   const [saveLoading, setSaveLoading] = useState(false);
-
-  // State for preview toggles: key = `${sectionName}-${index}`
   const [previewStates, setPreviewStates] = useState({});
+
+  // ---- AI Analysis state ----
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisResult, setAnalysisResult] = useState(null);
+  const [progressLogs, setProgressLogs] = useState([]);
 
   const togglePreview = (sectionName, index) => {
     const key = `${sectionName}-${index}`;
@@ -81,6 +81,9 @@ export default function CVDetail() {
           }
           setResume(data);
           setEditData(JSON.parse(JSON.stringify(data)));
+          // Reset AI state when loading new resume
+          setAnalysisResult(null);
+          setProgressLogs([]);
         } else if (res.status === 404) {
           setError('Resume not found.');
         } else {
@@ -95,7 +98,88 @@ export default function CVDetail() {
     fetchResume();
   }, [id, isAuthenticated, accessToken, authLoading]);
 
-  // ---------- Edit Mode Handlers ----------
+  // ---------- AI Analysis ----------
+  const handleAnalyze = async () => {
+    if (!resume) return;
+    setIsAnalyzing(true);
+    setAnalysisResult(null);
+    setProgressLogs([]);
+
+    try {
+      // Prepare a condensed version of the CV for the AI
+      const cvData = {
+        full_name: resume.full_name,
+        about: resume.about,
+        email: resume.email,
+        phone: resume.phone,
+        age: resume.age,
+        skills: resume.skills?.map(s => s.name).join(', ') || '',
+        languages: resume.languages?.map(l => l.name).join(', ') || '',
+        educations: resume.educations?.map(e => `${e.institution} – ${e.degree} (${e.field_of_study || ''})`).join('\n') || '',
+        experiences: resume.experiences?.map(e => `${e.position} at ${e.company} (${e.start_date} - ${e.end_date || 'Present'})`).join('\n') || '',
+        projects: resume.projects?.map(p => `${p.name} – ${p.description}`).join('\n') || '',
+        achievements: resume.achievements?.map(a => a.description).join('\n') || '',
+      };
+      const payload = JSON.stringify(cvData);
+
+      // 1. Start mission
+      const startRes = await fetch(`${API_BASE}/ai/analyze-cv/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({ resume_data: payload }),
+      });
+      if (!startRes.ok) throw new Error('Failed to start analysis');
+      const { task_id } = await startRes.json();
+
+      // 2. Open SSE stream
+      const eventSource = new EventSource(`${API_BASE}/ai/stream/${task_id}/`, {
+        // EventSource doesn't support custom headers, but it's fine for this use case
+        // The stream endpoint doesn't require authentication because it's proxied.
+      });
+
+      eventSource.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        // data can be a progress message or the final result
+        if (data.status === 'COMPLETE') {
+          // Mission finished – fetch the report
+          fetch(`${API_BASE}/ai/report/${task_id}/`, {
+            headers: { Authorization: `Bearer ${accessToken}` },
+          })
+            .then(res => res.json())
+            .then(report => {
+              setAnalysisResult(report);
+              setIsAnalyzing(false);
+              eventSource.close();
+            })
+            .catch(err => {
+              console.error('Failed to fetch report:', err);
+              setIsAnalyzing(false);
+              eventSource.close();
+            });
+        } else if (data.message) {
+          // Progress log
+          setProgressLogs((prev) => [...prev, data.message]);
+        }
+      };
+
+      eventSource.onerror = () => {
+        setIsAnalyzing(false);
+        eventSource.close();
+      };
+
+      // Save the eventSource so we can close it if needed
+      window.__aiEventSource = eventSource;
+    } catch (err) {
+      console.error('AI analysis error:', err);
+      setIsAnalyzing(false);
+      alert('Failed to start AI analysis. Please try again.');
+    }
+  };
+
+  // ---- Edit mode handlers (unchanged) ----
   const enableEditing = () => {
     const data = JSON.parse(JSON.stringify(resume));
     if (!data.section_order || data.section_order.length === 0) {
@@ -163,7 +247,7 @@ export default function CVDetail() {
     setEditData({ ...editData, section_order: newOrder });
   };
 
-  // ---------- Save ----------
+  // ---- Save ----
   const handleSave = async () => {
     setSaveLoading(true);
     try {
@@ -218,10 +302,9 @@ export default function CVDetail() {
     }
   };
 
-  // ---------- Duplicate ----------
+  // ---- Duplicate ----
   const handleDuplicate = async () => {
     const cleanNested = (items) => items.map(({ id, created_at, updated_at, ...rest }) => rest);
-
     const newTitle = resume.title ? `Copy of ${resume.title}` : `Copy of ${resume.full_name}`;
     const payload = {
       title: newTitle,
@@ -238,7 +321,6 @@ export default function CVDetail() {
       achievements: cleanNested(resume.achievements || []),
       section_order: resume.section_order || [...DEFAULT_SECTIONS],
     };
-
     try {
       const newResume = await createResume(payload);
       navigate(`/cv/${newResume.id}`);
@@ -247,7 +329,7 @@ export default function CVDetail() {
     }
   };
 
-  // ---------- Delete & PDF ----------
+  // ---- Delete & PDF ----
   const handleDelete = async () => {
     if (!window.confirm('Are you sure you want to delete this resume? This action cannot be undone.')) return;
     try {
@@ -290,9 +372,7 @@ export default function CVDetail() {
       <div className="min-h-screen flex items-center justify-center bg-[#0b0e14] text-slate-100">
         <div>
           <p className="text-red-400">{error || 'Please log in to view this resume.'}</p>
-          <Link to="/cv" className="mt-4 inline-block px-4 py-2 bg-blue-600 rounded hover:bg-blue-700">
-            Back to CV Manager
-          </Link>
+          <Link to="/cv" className="mt-4 inline-block px-4 py-2 bg-blue-600 rounded hover:bg-blue-700">Back to CV Manager</Link>
         </div>
       </div>
     );
@@ -412,6 +492,30 @@ export default function CVDetail() {
           <div className="flex justify-between items-center mb-6">
             <Link to="/cv" className="text-blue-400 hover:text-blue-300 transition">← Back to CV Manager</Link>
             <div className="flex gap-2 flex-wrap">
+              {/* AI Analysis Button */}
+              <button
+                onClick={handleAnalyze}
+                disabled={isAnalyzing}
+                className={`px-4 py-2 rounded-lg font-semibold transition flex items-center gap-2 ${
+                  isAnalyzing
+                    ? 'bg-gray-600 cursor-not-allowed'
+                    : 'bg-purple-600 hover:bg-purple-700'
+                }`}
+              >
+                {isAnalyzing ? (
+                  <>
+                    <span className="animate-spin">⟳</span> Analyzing...
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                      <path d="M10 2a8 8 0 00-4.5 14.6l1.4-1.4A6 6 0 1116 10H10v2l3 3 3-3v-2h-4a8 8 0 00-8-8z" />
+                    </svg>
+                    Analyze with AI
+                  </>
+                )}
+              </button>
+              {/* Existing buttons */}
               <button onClick={enableEditing} className="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 rounded-lg font-semibold transition flex items-center gap-2">
                 <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                   <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
@@ -426,26 +530,76 @@ export default function CVDetail() {
               </button>
               <button onClick={downloadPDF} className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg font-semibold transition flex items-center gap-2">
                 <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                  <path
-                    fillRule="evenodd"
-                    d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V7l-5-5H6zm8 13a1 1 0 01-1 1H7a1 1 0 01-1-1v-1a1 1 0 011-1h6a1 1 0 011 1v1zm-3-8V3.5L13.5 7H11z"
-                    clipRule="evenodd"
-                  />
+                  <path fillRule="evenodd" d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V7l-5-5H6zm8 13a1 1 0 01-1 1H7a1 1 0 01-1-1v-1a1 1 0 011-1h6a1 1 0 011 1v1zm-3-8V3.5L13.5 7H11z" clipRule="evenodd" />
                 </svg>
                 Download PDF
               </button>
               <button onClick={handleDelete} className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg font-semibold transition flex items-center gap-2">
                 <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                  <path
-                    fillRule="evenodd"
-                    d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z"
-                    clipRule="evenodd"
-                  />
+                  <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
                 </svg>
                 Delete
               </button>
             </div>
           </div>
+
+          {/* AI Analysis Results */}
+          {isAnalyzing && (
+            <div className="bg-gray-800 p-4 rounded-lg mb-6">
+              <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                <span className="animate-spin">⟳</span> AI is analyzing your CV...
+              </h3>
+              <div className="mt-2 text-sm text-gray-300 max-h-40 overflow-y-auto">
+                {progressLogs.map((log, i) => (
+                  <div key={i} className="border-b border-gray-700 py-1">
+                    {log}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {analysisResult && (
+            <div className="bg-gray-800 p-4 rounded-lg mb-6 border border-purple-500">
+              <h3 className="text-lg font-semibold text-purple-400 flex items-center gap-2">
+                🤖 AI Feedback
+              </h3>
+              {analysisResult.rating && (
+                <div className="mt-2">
+                  <span className="text-2xl font-bold text-white">{analysisResult.rating}</span>
+                  <span className="text-gray-400 text-sm"> / 10</span>
+                </div>
+              )}
+              <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <h4 className="text-sm font-semibold text-green-400">Strengths</h4>
+                  <ul className="list-disc list-inside text-sm text-gray-300">
+                    {analysisResult.strengths?.map((s, i) => <li key={i}>{s}</li>) || <li>No strengths listed</li>}
+                  </ul>
+                </div>
+                <div>
+                  <h4 className="text-sm font-semibold text-red-400">Areas for Improvement</h4>
+                  <ul className="list-disc list-inside text-sm text-gray-300">
+                    {analysisResult.weaknesses?.map((w, i) => <li key={i}>{w}</li>) || <li>No weaknesses listed</li>}
+                  </ul>
+                </div>
+              </div>
+              {analysisResult.suggestions && analysisResult.suggestions.length > 0 && (
+                <div className="mt-4">
+                  <h4 className="text-sm font-semibold text-blue-400">Suggestions</h4>
+                  <ul className="list-disc list-inside text-sm text-gray-300">
+                    {analysisResult.suggestions.map((s, i) => <li key={i}>{s}</li>)}
+                  </ul>
+                </div>
+              )}
+              <button
+                onClick={() => setAnalysisResult(null)}
+                className="mt-4 text-xs text-gray-400 hover:text-white"
+              >
+                Dismiss
+              </button>
+            </div>
+          )}
 
           <div className="bg-gray-900 rounded-2xl shadow-2xl overflow-hidden border border-gray-800">
             <div className="bg-gradient-to-r from-blue-800 to-purple-800 px-8 py-10">
@@ -471,7 +625,7 @@ export default function CVDetail() {
     );
   }
 
-  // ---------- Edit Mode ----------
+  // ---------- Edit Mode (unchanged) ----------
   const sectionOrder = editData.section_order || DEFAULT_SECTIONS;
 
   return (
@@ -563,7 +717,7 @@ export default function CVDetail() {
             </div>
           </div>
 
-          {/* Dynamic Sections */}
+          {/* Dynamic Sections (unchanged) */}
           {sectionOrder.map((sectionName, idx) => {
             const label = SECTION_LABELS[sectionName] || sectionName;
             const items = editData[sectionName] || [];
@@ -658,7 +812,6 @@ export default function CVDetail() {
                             if (key.includes('date')) inputType = 'date';
                             if (key === 'url') inputType = 'url';
 
-                            // For description fields, add preview toggle
                             if (key === 'description') {
                               return (
                                 <div key={key} className="relative col-span-2">
@@ -692,7 +845,6 @@ export default function CVDetail() {
                               );
                             }
 
-                            // Special handling for is_current checkbox
                             if (isExperience && key === 'is_current') {
                               return (
                                 <div key={key} className="col-span-2 flex items-center gap-2 mt-1">
