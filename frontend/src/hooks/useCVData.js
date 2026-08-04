@@ -56,6 +56,19 @@ export function useCVData() {
     loadData();
   }, [isAuthenticated, accessToken, filterTag]);
 
+  // ---- Get a single resume ----
+  const getResume = async (id) => {
+    if (!isAuthenticated) throw new Error('Not authenticated');
+    const res = await fetch(`${API_BASE}/resumes/${id}/`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.detail || 'Failed to fetch resume');
+    }
+    return await res.json();
+  };
+
   // ---- Create Resume ----
   const createResume = async (data) => {
     if (isAuthenticated) {
@@ -234,6 +247,7 @@ export function useCVData() {
     loading,
     filterTag,
     setFilterTag,
+    getResume,           // <-- NEW
     createResume,
     updateResume,
     deleteResume,

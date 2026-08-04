@@ -5,6 +5,8 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useHVT } from '../context/HVTContext';
 import { useCVData } from '../hooks/useCVData';
+import { useProfileLibrary } from '../hooks/useProfileLibrary';
+import LibraryCombobox from '../components/LibraryCombobox';
 
 const API_BASE = 'https://api.franciscodes.com/cv/api';
 
@@ -18,7 +20,6 @@ const SECTION_LABELS = {
   achievements: 'Achievements',
 };
 
-// Markdown component (unchanged)
 const MarkdownContent = ({ children, className = '' }) => {
   if (!children) return null;
   return (
@@ -40,7 +41,22 @@ export default function CVDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { accessToken, isAuthenticated, loading: authLoading } = useHVT();
-  const { updateResume, deleteResume, createResume } = useCVData();
+  const { updateResume, deleteResume, createResume, getResume } = useCVData();
+  const {
+    experiences,
+    educations,
+    projects,
+    skills,
+    languages,
+    achievements,
+    loading: libraryLoading,
+    addExperience,
+    addEducation,
+    addProject,
+    addSkill,
+    addLanguage,
+    addAchievement,
+  } = useProfileLibrary();
 
   const [resume, setResume] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -50,18 +66,28 @@ export default function CVDetail() {
   const [saveLoading, setSaveLoading] = useState(false);
   const [previewStates, setPreviewStates] = useState({});
 
-  // ---- AI Analysis state (polling) ----
+  // ---- AI Analysis state ----
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState(null);
   const [progressMessage, setProgressMessage] = useState('');
-  const pollingRef = useRef(null);   // holds the timeout ID
+  const pollingRef = useRef(null);
 
-  const togglePreview = (sectionName, index) => {
-    const key = `${sectionName}-${index}`;
-    setPreviewStates((prev) => ({ ...prev, [key]: !prev[key] }));
+  // ---- "Add New" modal state for edit mode ----
+  const [newSectionType, setNewSectionType] = useState(null);
+  const [newSectionData, setNewSectionData] = useState({});
+  const [addingSection, setAddingSection] = useState(false);
+
+  // ---- Helper: determine if resume uses profile library ----
+  const usesProfile = (res) => {
+    if (!res) return false;
+    return (
+      (res.profile_education_ids && res.profile_education_ids.length > 0) ||
+      (res.profile_experience_ids && res.profile_experience_ids.length > 0) ||
+      (res.profile_skill_ids && res.profile_skill_ids.length > 0)
+    );
   };
 
-  // ---------- Fetch Resume ----------
+  // ---- Fetch resume ----
   useEffect(() => {
     const fetchResume = async () => {
       if (authLoading) return;
@@ -71,46 +97,33 @@ export default function CVDetail() {
         return;
       }
       try {
-        const url = `${API_BASE}/resumes/${id}/`;
-        const res = await fetch(url, {
-          headers: { Authorization: `Bearer ${accessToken}` },
-        });
-        if (res.ok) {
-          const data = await res.json();
-          if (!data.section_order || data.section_order.length === 0) {
-            data.section_order = [...DEFAULT_SECTIONS];
-          }
-          setResume(data);
-          setEditData(JSON.parse(JSON.stringify(data)));
-          setAnalysisResult(null);
-          setProgressMessage('');
-        } else if (res.status === 404) {
-          setError('Resume not found.');
-        } else {
-          setError('Failed to load resume.');
+        const data = await getResume(id);
+        if (!data.section_order || data.section_order.length === 0) {
+          data.section_order = [...DEFAULT_SECTIONS];
         }
+        setResume(data);
+        setEditData(JSON.parse(JSON.stringify(data)));
+        setAnalysisResult(null);
+        setProgressMessage('');
+        setError(null);
       } catch (e) {
-        setError('Network error.');
+        setError(e.message || 'Failed to load resume.');
       } finally {
         setLoading(false);
       }
     };
     fetchResume();
-  }, [id, isAuthenticated, accessToken, authLoading]);
+  }, [id, isAuthenticated, accessToken, authLoading, getResume]);
 
-  // ---------- AI Analysis (Polling) ----------
+  // ---- AI Analysis (unchanged) ----
   const handleAnalyze = async () => {
     if (!resume) return;
-
-    // Cancel any existing poll
     if (pollingRef.current) clearTimeout(pollingRef.current);
-
     setIsAnalyzing(true);
     setAnalysisResult(null);
     setProgressMessage('Starting AI analysis...');
 
     try {
-      // Prepare a condensed version of the CV for the AI
       const cvData = {
         full_name: resume.full_name,
         about: resume.about,
@@ -126,7 +139,6 @@ export default function CVDetail() {
       };
       const payload = JSON.stringify(cvData);
 
-      // 1. Start mission
       const startRes = await fetch(`${API_BASE}/ai/analyze-cv/`, {
         method: 'POST',
         headers: {
@@ -140,10 +152,9 @@ export default function CVDetail() {
 
       setProgressMessage('AI is analyzing your CV...');
 
-      // 2. Poll for the result
       let attempts = 0;
-      const maxAttempts = 120;   // 120 × 5s = 10 minutes
-      const pollInterval = 5000; // 5 seconds
+      const maxAttempts = 120;
+      const pollInterval = 5000;
 
       const poll = async () => {
         attempts++;
@@ -153,7 +164,6 @@ export default function CVDetail() {
           });
 
           if (reportRes.ok) {
-            // Success – report is ready
             const report = await reportRes.json();
             setAnalysisResult(report);
             setIsAnalyzing(false);
@@ -163,7 +173,6 @@ export default function CVDetail() {
           }
 
           if (reportRes.status === 404) {
-            // Still processing – cycle through messages
             const messages = [
               'AI is analyzing your CV...',
               'DeepSeek is thinking...',
@@ -175,7 +184,6 @@ export default function CVDetail() {
             throw new Error('Failed to fetch report');
           }
 
-          // Continue polling if not exceeded max attempts
           if (attempts < maxAttempts) {
             pollingRef.current = setTimeout(poll, pollInterval);
           } else {
@@ -190,7 +198,6 @@ export default function CVDetail() {
         }
       };
 
-      // Start the polling loop
       pollingRef.current = setTimeout(poll, pollInterval);
     } catch (err) {
       console.error('Analysis start error:', err);
@@ -200,14 +207,13 @@ export default function CVDetail() {
     }
   };
 
-  // Cleanup polling on unmount
   useEffect(() => {
     return () => {
       if (pollingRef.current) clearTimeout(pollingRef.current);
     };
   }, []);
 
-  // ---- Edit mode handlers (unchanged) ----
+  // ---- Edit mode handlers ----
   const enableEditing = () => {
     const data = JSON.parse(JSON.stringify(resume));
     if (!data.section_order || data.section_order.length === 0) {
@@ -274,47 +280,116 @@ export default function CVDetail() {
     setEditData({ ...editData, section_order: newOrder });
   };
 
-  // ---- Save ----
+  // ---- Set section IDs in editData (for profile library) ----
+  const setSectionIds = (sectionKey, ids) => {
+    setEditData(prev => ({ ...prev, [sectionKey]: ids }));
+  };
+
+  // ---- Add new section to library (for edit mode) ----
+  const handleAddNewSection = async (type) => {
+    setAddingSection(true);
+    try {
+      let result;
+      switch (type) {
+        case 'experience':
+          result = await addExperience(newSectionData);
+          break;
+        case 'education':
+          result = await addEducation(newSectionData);
+          break;
+        case 'project':
+          result = await addProject(newSectionData);
+          break;
+        case 'skill':
+          result = await addSkill(newSectionData);
+          break;
+        case 'language':
+          result = await addLanguage(newSectionData);
+          break;
+        case 'achievement':
+          result = await addAchievement(newSectionData);
+          break;
+        default:
+          return;
+      }
+      const idKey = `profile_${type}_ids`;
+      setEditData(prev => ({
+        ...prev,
+        [idKey]: [...prev[idKey], result.id],
+      }));
+      setNewSectionType(null);
+      setNewSectionData({});
+    } catch (err) {
+      alert(`Error adding ${type}: ${err.message}`);
+    } finally {
+      setAddingSection(false);
+    }
+  };
+
+  // ---- Save (handles both legacy and profile) ----
   const handleSave = async () => {
     setSaveLoading(true);
     try {
-      const filterValid = (items, requiredFields) => {
-        return items
-          .filter((item) => {
-            const hasAnyData = Object.values(item).some((v) => v && v.toString().trim() !== '');
-            if (!hasAnyData) return false;
-            const missing = requiredFields.filter((f) => !item[f] || item[f].toString().trim() === '');
-            return missing.length === 0;
-          })
-          .map((item) => {
-            const cleaned = { ...item };
-            Object.keys(cleaned).forEach((key) => {
-              if (key.includes('date') || key === 'url') {
-                cleaned[key] = cleaned[key] || null;
-              }
-            });
-            if (cleaned.is_current) {
-              cleaned.end_date = null;
-            }
-            return cleaned;
-          });
-      };
+      let payload;
+      const usesProfileData = usesProfile(editData);
 
-      const payload = {
-        title: editData.title || null,
-        full_name: editData.full_name,
-        about: editData.about,
-        email: editData.email,
-        phone: editData.phone,
-        age: editData.age || null,
-        educations: filterValid(editData.educations, ['institution']),
-        experiences: filterValid(editData.experiences, ['company']),
-        projects: filterValid(editData.projects, ['name']),
-        skills: filterValid(editData.skills, ['name']),
-        languages: filterValid(editData.languages, ['name']),
-        achievements: filterValid(editData.achievements, ['description']),
-        section_order: editData.section_order || [...DEFAULT_SECTIONS],
-      };
+      if (usesProfileData) {
+        // For profile-based resumes, send only ID lists and basic info
+        payload = {
+          title: editData.title || null,
+          full_name: editData.full_name,
+          about: editData.about,
+          email: editData.email,
+          phone: editData.phone,
+          age: editData.age || null,
+          profile_education_ids: editData.profile_education_ids || [],
+          profile_experience_ids: editData.profile_experience_ids || [],
+          profile_project_ids: editData.profile_project_ids || [],
+          profile_skill_ids: editData.profile_skill_ids || [],
+          profile_language_ids: editData.profile_language_ids || [],
+          profile_achievement_ids: editData.profile_achievement_ids || [],
+          section_order: editData.section_order || [...DEFAULT_SECTIONS],
+        };
+      } else {
+        // Legacy nested data – keep old logic
+        const filterValid = (items, requiredFields) => {
+          return items
+            .filter((item) => {
+              const hasAnyData = Object.values(item).some((v) => v && v.toString().trim() !== '');
+              if (!hasAnyData) return false;
+              const missing = requiredFields.filter((f) => !item[f] || item[f].toString().trim() === '');
+              return missing.length === 0;
+            })
+            .map((item) => {
+              const cleaned = { ...item };
+              Object.keys(cleaned).forEach((key) => {
+                if (key.includes('date') || key === 'url') {
+                  cleaned[key] = cleaned[key] || null;
+                }
+              });
+              if (cleaned.is_current) {
+                cleaned.end_date = null;
+              }
+              return cleaned;
+            });
+        };
+
+        payload = {
+          title: editData.title || null,
+          full_name: editData.full_name,
+          about: editData.about,
+          email: editData.email,
+          phone: editData.phone,
+          age: editData.age || null,
+          educations: filterValid(editData.educations, ['institution']),
+          experiences: filterValid(editData.experiences, ['company']),
+          projects: filterValid(editData.projects, ['name']),
+          skills: filterValid(editData.skills, ['name']),
+          languages: filterValid(editData.languages, ['name']),
+          achievements: filterValid(editData.achievements, ['description']),
+          section_order: editData.section_order || [...DEFAULT_SECTIONS],
+        };
+      }
 
       const updated = await updateResume(id, payload);
       setResume(updated);
@@ -355,7 +430,7 @@ export default function CVDetail() {
     }
   };
 
-  // ---- Delete & PDF ----
+  // ---- Delete ----
   const handleDelete = async () => {
     if (!window.confirm('Are you sure you want to delete this resume? This action cannot be undone.')) return;
     try {
@@ -366,6 +441,7 @@ export default function CVDetail() {
     }
   };
 
+  // ---- PDF download ----
   const downloadPDF = async () => {
     if (!isAuthenticated || !accessToken) {
       alert('Please log in to download PDF.');
@@ -391,23 +467,165 @@ export default function CVDetail() {
     }
   };
 
-  // ---------- Loading / Error ----------
-  if (authLoading || loading) return <div className="min-h-screen flex items-center justify-center bg-[#0b0e14] text-slate-100">Loading...</div>;
-  if (!isAuthenticated || error) {
+  // ---- Add New Section Modal ----
+  const renderAddNewModal = () => {
+    if (!newSectionType) return null;
+
+    const fields = {
+      experience: [
+        { key: 'company', label: 'Company', required: true },
+        { key: 'position', label: 'Position', required: true },
+        { key: 'start_date', label: 'Start Date', type: 'date' },
+        { key: 'end_date', label: 'End Date', type: 'date' },
+        { key: 'is_current', label: 'Currently working', type: 'checkbox' },
+        { key: 'description', label: 'Description', type: 'textarea' },
+        { key: 'location', label: 'Location' },
+      ],
+      education: [
+        { key: 'institution', label: 'Institution', required: true },
+        { key: 'degree', label: 'Degree' },
+        { key: 'field_of_study', label: 'Field of Study' },
+        { key: 'start_date', label: 'Start Date', type: 'date' },
+        { key: 'end_date', label: 'End Date', type: 'date' },
+        { key: 'description', label: 'Description', type: 'textarea' },
+      ],
+      project: [
+        { key: 'name', label: 'Project Name', required: true },
+        { key: 'description', label: 'Description', type: 'textarea' },
+        { key: 'url', label: 'URL', type: 'url' },
+        { key: 'start_date', label: 'Start Date', type: 'date' },
+        { key: 'end_date', label: 'End Date', type: 'date' },
+      ],
+      skill: [
+        { key: 'name', label: 'Skill Name', required: true },
+        { key: 'proficiency', label: 'Proficiency (e.g., Expert, Intermediate)' },
+      ],
+      language: [
+        { key: 'name', label: 'Language', required: true },
+        { key: 'proficiency', label: 'Proficiency (e.g., Native, Fluent)' },
+      ],
+      achievement: [
+        { key: 'description', label: 'Achievement Description', required: true, type: 'textarea' },
+      ],
+    };
+
+    const fieldDefs = fields[newSectionType];
+    if (!fieldDefs) return null;
+
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#0b0e14] text-slate-100">
-        <div>
-          <p className="text-red-400">{error || 'Please log in to view this resume.'}</p>
-          <Link to="/cv" className="mt-4 inline-block px-4 py-2 bg-blue-600 rounded hover:bg-blue-700">Back to CV Manager</Link>
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="bg-gray-800 p-6 rounded-lg max-w-lg w-full max-h-[90vh] overflow-y-auto">
+          <h3 className="text-xl font-bold mb-4">Add New {newSectionType.charAt(0).toUpperCase() + newSectionType.slice(1)}</h3>
+          <div className="space-y-3">
+            {fieldDefs.map(({ key, label, type = 'text', required }) => {
+              const value = newSectionData[key] || '';
+              const onChange = (val) => {
+                setNewSectionData(prev => ({ ...prev, [key]: val }));
+              };
+              if (type === 'checkbox') {
+                return (
+                  <label key={key} className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={!!value}
+                      onChange={(e) => onChange(e.target.checked)}
+                      className="w-4 h-4"
+                    />
+                    <span className="text-sm">{label}</span>
+                  </label>
+                );
+              }
+              return (
+                <div key={key}>
+                  <label className="block text-sm font-medium mb-1">
+                    {label} {required && <span className="text-red-400">*</span>}
+                  </label>
+                  {type === 'textarea' ? (
+                    <textarea
+                      value={value}
+                      onChange={(e) => onChange(e.target.value)}
+                      className="w-full p-2 bg-gray-700 rounded border border-gray-600"
+                      rows="3"
+                    />
+                  ) : (
+                    <input
+                      type={type}
+                      value={value}
+                      onChange={(e) => onChange(e.target.value)}
+                      className="w-full p-2 bg-gray-700 rounded border border-gray-600"
+                    />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          <div className="flex justify-end gap-3 mt-4">
+            <button
+              type="button"
+              onClick={() => { setNewSectionType(null); setNewSectionData({}); }}
+              className="px-4 py-2 bg-gray-600 hover:bg-gray-700 rounded"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={() => handleAddNewSection(newSectionType)}
+              disabled={addingSection}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded font-semibold disabled:opacity-50"
+            >
+              {addingSection ? 'Saving...' : 'Save'}
+            </button>
+          </div>
         </div>
       </div>
     );
-  }
-  if (!resume) return <div className="min-h-screen flex items-center justify-center bg-[#0b0e14] text-slate-100"><p>No resume data found.</p></div>;
+  };
 
-  // ---------- Display Sections (View Mode) ----------
+  // ---- Resolve display items for view mode ----
+  const getDisplayItems = (sectionKey, libraryItems) => {
+    if (!resume) return [];
+    const useProfileData = usesProfile(resume);
+    if (useProfileData) {
+      const ids = resume[sectionKey] || [];
+      return libraryItems.filter(item => ids.includes(item.id));
+    } else {
+      // legacy
+      const legacyMap = {
+        profile_education_ids: 'educations',
+        profile_experience_ids: 'experiences',
+        profile_project_ids: 'projects',
+        profile_skill_ids: 'skills',
+        profile_language_ids: 'languages',
+        profile_achievement_ids: 'achievements',
+      };
+      const legacyKey = legacyMap[sectionKey];
+      return resume[legacyKey] || [];
+    }
+  };
+
+  // ---- Render a section in view mode (adapted for both profile and legacy) ----
   const renderDisplaySection = (sectionName) => {
-    const items = resume[sectionName];
+    // For profile sections, we need to map sectionName to the correct profile key and library items
+    const profileKeyMap = {
+      educations: { key: 'profile_education_ids', items: educations },
+      experiences: { key: 'profile_experience_ids', items: experiences },
+      projects: { key: 'profile_project_ids', items: projects },
+      skills: { key: 'profile_skill_ids', items: skills },
+      languages: { key: 'profile_language_ids', items: languages },
+      achievements: { key: 'profile_achievement_ids', items: achievements },
+    };
+
+    const useProfileData = usesProfile(resume);
+    let items;
+    if (useProfileData) {
+      const mapping = profileKeyMap[sectionName];
+      if (!mapping) return null;
+      const ids = resume[mapping.key] || [];
+      items = mapping.items.filter(item => ids.includes(item.id));
+    } else {
+      items = resume[sectionName] || [];
+    }
+
     if (!items || items.length === 0) return null;
     const title = SECTION_LABELS[sectionName] || sectionName;
     const isFlex = ['skills', 'languages'].includes(sectionName);
@@ -417,10 +635,10 @@ export default function CVDetail() {
         <h2 className="text-2xl font-semibold text-white border-b border-gray-700 pb-2 mb-4">{title}</h2>
         {isFlex ? (
           <div className="flex flex-wrap gap-2">
-            {items.map((item) => {
+            {items.map((item, idx) => {
               if (sectionName === 'skills') {
                 return (
-                  <span key={item.id} className="px-3 py-1 bg-blue-900/50 text-blue-300 rounded-full text-sm">
+                  <span key={idx} className="px-3 py-1 bg-blue-900/50 text-blue-300 rounded-full text-sm">
                     {item.name}
                     {item.proficiency && ` (${item.proficiency})`}
                   </span>
@@ -428,7 +646,7 @@ export default function CVDetail() {
               }
               if (sectionName === 'languages') {
                 return (
-                  <span key={item.id} className="px-3 py-1 bg-purple-900/50 text-purple-300 rounded-full text-sm">
+                  <span key={idx} className="px-3 py-1 bg-purple-900/50 text-purple-300 rounded-full text-sm">
                     {item.name}
                     {item.proficiency && ` (${item.proficiency})`}
                   </span>
@@ -439,10 +657,10 @@ export default function CVDetail() {
           </div>
         ) : (
           <ul className="list-disc list-inside space-y-1 text-gray-300">
-            {items.map((item) => {
+            {items.map((item, idx) => {
               if (sectionName === 'educations') {
                 return (
-                  <li key={item.id}>
+                  <li key={idx}>
                     {item.institution}
                     {item.degree && ` – ${item.degree}`}
                     {item.field_of_study && ` (${item.field_of_study})`}
@@ -457,7 +675,7 @@ export default function CVDetail() {
               }
               if (sectionName === 'experiences') {
                 return (
-                  <li key={item.id}>
+                  <li key={idx}>
                     {item.position} at {item.company}
                     {item.location && ` (${item.location})`}
                     {item.start_date && (
@@ -477,7 +695,7 @@ export default function CVDetail() {
               }
               if (sectionName === 'projects') {
                 return (
-                  <li key={item.id}>
+                  <li key={idx}>
                     {item.name}
                     {item.url && (
                       <a href={item.url} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">
@@ -496,7 +714,7 @@ export default function CVDetail() {
               }
               if (sectionName === 'achievements') {
                 return (
-                  <li key={item.id}>
+                  <li key={idx}>
                     <MarkdownContent>{item.description}</MarkdownContent>
                   </li>
                 );
@@ -509,7 +727,25 @@ export default function CVDetail() {
     );
   };
 
-  // ---------- View Mode ----------
+  // ---- Loading / Error ----
+  if (authLoading || loading || libraryLoading) {
+    return <div className="min-h-screen flex items-center justify-center bg-[#0b0e14] text-slate-100">Loading...</div>;
+  }
+
+  if (!isAuthenticated || error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#0b0e14] text-slate-100">
+        <div>
+          <p className="text-red-400">{error || 'Please log in to view this resume.'}</p>
+          <Link to="/cv" className="mt-4 inline-block px-4 py-2 bg-blue-600 rounded hover:bg-blue-700">Back to CV Manager</Link>
+        </div>
+      </div>
+    );
+  }
+
+  if (!resume) return <div className="min-h-screen flex items-center justify-center bg-[#0b0e14] text-slate-100"><p>No resume data found.</p></div>;
+
+  // ---- View Mode ----
   if (!isEditing) {
     const sectionOrder = resume.section_order || DEFAULT_SECTIONS;
     return (
@@ -541,30 +777,17 @@ export default function CVDetail() {
                   </>
                 )}
               </button>
-              {/* Existing buttons */}
               <button onClick={enableEditing} className="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 rounded-lg font-semibold transition flex items-center gap-2">
-                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-                </svg>
-                Edit
+                ✏️ Edit
               </button>
               <button onClick={handleDuplicate} className="px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg font-semibold transition flex items-center gap-2">
-                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 0v12h8V8h-3a1 1 0 01-1-1V4H6zm5 3V4l3 3h-3z" />
-                </svg>
-                Duplicate
+                📋 Duplicate
               </button>
               <button onClick={downloadPDF} className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg font-semibold transition flex items-center gap-2">
-                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V7l-5-5H6zm8 13a1 1 0 01-1 1H7a1 1 0 01-1-1v-1a1 1 0 011-1h6a1 1 0 011 1v1zm-3-8V3.5L13.5 7H11z" clipRule="evenodd" />
-                </svg>
-                Download PDF
+                📄 PDF
               </button>
               <button onClick={handleDelete} className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg font-semibold transition flex items-center gap-2">
-                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
-                </svg>
-                Delete
+                🗑️ Delete
               </button>
             </div>
           </div>
@@ -636,6 +859,11 @@ export default function CVDetail() {
                 {resume.phone && <span>📞 {resume.phone}</span>}
                 {resume.age && <span>🎂 {resume.age} years</span>}
               </div>
+              {!usesProfile(resume) && (
+                <div className="mt-4 bg-yellow-800/30 border border-yellow-600 p-2 rounded text-yellow-200 text-sm">
+                  ⚠️ This resume uses legacy nested sections. To edit sections, please re‑create it using the "Add New CV" form.
+                </div>
+              )}
             </div>
             <div className="p-8 space-y-8">
               {sectionOrder.map((section) => renderDisplaySection(section))}
@@ -650,7 +878,8 @@ export default function CVDetail() {
     );
   }
 
-  // ---------- Edit Mode (unchanged) ----------
+  // ---- Edit Mode ----
+  const isProfile = usesProfile(editData);
   const sectionOrder = editData.section_order || DEFAULT_SECTIONS;
 
   return (
@@ -672,13 +901,16 @@ export default function CVDetail() {
           </div>
         </div>
 
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            handleSave();
-          }}
-          className="bg-gray-900 p-6 rounded-2xl shadow-2xl border border-gray-800 space-y-6"
-        >
+        {!isProfile && (
+          <div className="bg-yellow-800/30 border border-yellow-600 p-4 rounded-lg mb-4">
+            <p className="text-yellow-200 text-sm">
+              ⚠️ This resume uses legacy nested sections. Editing sections is limited to basic info and re‑ordering.
+              To use the new profile library, please re‑create the resume using the "Add New CV" form.
+            </p>
+          </div>
+        )}
+
+        <form onSubmit={(e) => { e.preventDefault(); handleSave(); }} className="bg-gray-900 p-6 rounded-2xl shadow-2xl border border-gray-800 space-y-6">
           {/* Basic Info */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
@@ -742,199 +974,309 @@ export default function CVDetail() {
             </div>
           </div>
 
-          {/* Dynamic Sections (unchanged) */}
-          {sectionOrder.map((sectionName, idx) => {
-            const label = SECTION_LABELS[sectionName] || sectionName;
-            const items = editData[sectionName] || [];
-            const emptyItem = {
-              educations: {
-                institution: '',
-                degree: '',
-                field_of_study: '',
-                start_date: '',
-                end_date: '',
-                description: '',
-                order: items.length,
-              },
-              experiences: {
-                company: '',
-                position: '',
-                start_date: '',
-                end_date: '',
-                description: '',
-                location: '',
-                is_current: false,
-                order: items.length,
-              },
-              projects: {
-                name: '',
-                description: '',
-                url: '',
-                start_date: '',
-                end_date: '',
-                order: items.length,
-              },
-              skills: { name: '', proficiency: '', order: items.length },
-              languages: { name: '', proficiency: '', order: items.length },
-              achievements: { description: '', order: items.length },
-            }[sectionName];
-            const requiredFields = {
-              educations: ['institution'],
-              experiences: ['company'],
-              projects: ['name'],
-              skills: ['name'],
-              languages: ['name'],
-              achievements: ['description'],
-            }[sectionName];
+          {isProfile ? (
+            // ---- Profile‑based edit: use LibraryCombobox ----
+            <div className="border border-gray-700 p-4 rounded">
+              <h3 className="text-lg font-medium mb-3">Sections from your profile library</h3>
+              <p className="text-xs text-gray-400 mb-3">Select existing entries or add new ones.</p>
 
-            return (
-              <div key={sectionName} className="border border-gray-700 p-4 rounded">
-                <div className="flex justify-between items-center mb-2">
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-lg font-medium">
-                      {label}{' '}
-                      <span className="text-xs text-gray-400">(required: {requiredFields.join(', ')})</span>
-                    </h3>
+              <LibraryCombobox
+                label="Work Experience"
+                selectedIds={editData.profile_experience_ids || []}
+                items={experiences}
+                displayKey={(exp) => `${exp.position} at ${exp.company}`}
+                placeholder="Search experiences..."
+                onToggle={(id) => {
+                  const current = editData.profile_experience_ids || [];
+                  if (current.includes(id)) {
+                    setSectionIds('profile_experience_ids', current.filter(i => i !== id));
+                  } else {
+                    setSectionIds('profile_experience_ids', [...current, id]);
+                  }
+                }}
+                onAddNew={() => { setNewSectionType('experience'); setNewSectionData({}); }}
+              />
+
+              <LibraryCombobox
+                label="Education"
+                selectedIds={editData.profile_education_ids || []}
+                items={educations}
+                displayKey={(edu) => `${edu.degree} at ${edu.institution}`}
+                placeholder="Search education..."
+                onToggle={(id) => {
+                  const current = editData.profile_education_ids || [];
+                  if (current.includes(id)) {
+                    setSectionIds('profile_education_ids', current.filter(i => i !== id));
+                  } else {
+                    setSectionIds('profile_education_ids', [...current, id]);
+                  }
+                }}
+                onAddNew={() => { setNewSectionType('education'); setNewSectionData({}); }}
+              />
+
+              <LibraryCombobox
+                label="Projects"
+                selectedIds={editData.profile_project_ids || []}
+                items={projects}
+                displayKey={(proj) => proj.name}
+                placeholder="Search projects..."
+                onToggle={(id) => {
+                  const current = editData.profile_project_ids || [];
+                  if (current.includes(id)) {
+                    setSectionIds('profile_project_ids', current.filter(i => i !== id));
+                  } else {
+                    setSectionIds('profile_project_ids', [...current, id]);
+                  }
+                }}
+                onAddNew={() => { setNewSectionType('project'); setNewSectionData({}); }}
+              />
+
+              <LibraryCombobox
+                label="Skills"
+                selectedIds={editData.profile_skill_ids || []}
+                items={skills}
+                displayKey={(skill) => skill.name + (skill.proficiency ? ` (${skill.proficiency})` : '')}
+                placeholder="Search skills..."
+                onToggle={(id) => {
+                  const current = editData.profile_skill_ids || [];
+                  if (current.includes(id)) {
+                    setSectionIds('profile_skill_ids', current.filter(i => i !== id));
+                  } else {
+                    setSectionIds('profile_skill_ids', [...current, id]);
+                  }
+                }}
+                onAddNew={() => { setNewSectionType('skill'); setNewSectionData({}); }}
+              />
+
+              <LibraryCombobox
+                label="Languages"
+                selectedIds={editData.profile_language_ids || []}
+                items={languages}
+                displayKey={(lang) => lang.name + (lang.proficiency ? ` (${lang.proficiency})` : '')}
+                placeholder="Search languages..."
+                onToggle={(id) => {
+                  const current = editData.profile_language_ids || [];
+                  if (current.includes(id)) {
+                    setSectionIds('profile_language_ids', current.filter(i => i !== id));
+                  } else {
+                    setSectionIds('profile_language_ids', [...current, id]);
+                  }
+                }}
+                onAddNew={() => { setNewSectionType('language'); setNewSectionData({}); }}
+              />
+
+              <LibraryCombobox
+                label="Achievements"
+                selectedIds={editData.profile_achievement_ids || []}
+                items={achievements}
+                displayKey={(ach) => ach.description.length > 60 ? ach.description.slice(0, 60) + '...' : ach.description}
+                placeholder="Search achievements..."
+                onToggle={(id) => {
+                  const current = editData.profile_achievement_ids || [];
+                  if (current.includes(id)) {
+                    setSectionIds('profile_achievement_ids', current.filter(i => i !== id));
+                  } else {
+                    setSectionIds('profile_achievement_ids', [...current, id]);
+                  }
+                }}
+                onAddNew={() => { setNewSectionType('achievement'); setNewSectionData({}); }}
+              />
+            </div>
+          ) : (
+            // ---- Legacy nested edit (original dynamic forms) ----
+            sectionOrder.map((sectionName, idx) => {
+              const label = SECTION_LABELS[sectionName] || sectionName;
+              const items = editData[sectionName] || [];
+              const emptyItem = {
+                educations: {
+                  institution: '',
+                  degree: '',
+                  field_of_study: '',
+                  start_date: '',
+                  end_date: '',
+                  description: '',
+                  order: items.length,
+                },
+                experiences: {
+                  company: '',
+                  position: '',
+                  start_date: '',
+                  end_date: '',
+                  description: '',
+                  location: '',
+                  is_current: false,
+                  order: items.length,
+                },
+                projects: {
+                  name: '',
+                  description: '',
+                  url: '',
+                  start_date: '',
+                  end_date: '',
+                  order: items.length,
+                },
+                skills: { name: '', proficiency: '', order: items.length },
+                languages: { name: '', proficiency: '', order: items.length },
+                achievements: { description: '', order: items.length },
+              }[sectionName];
+              const requiredFields = {
+                educations: ['institution'],
+                experiences: ['company'],
+                projects: ['name'],
+                skills: ['name'],
+                languages: ['name'],
+                achievements: ['description'],
+              }[sectionName];
+
+              return (
+                <div key={sectionName} className="border border-gray-700 p-4 rounded">
+                  <div className="flex justify-between items-center mb-2">
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-lg font-medium">
+                        {label}{' '}
+                        <span className="text-xs text-gray-400">(required: {requiredFields.join(', ')})</span>
+                      </h3>
+                      <button
+                        type="button"
+                        onClick={() => moveSection(sectionName, 'up')}
+                        disabled={idx === 0}
+                        className="text-gray-400 hover:text-white text-sm disabled:opacity-30"
+                      >
+                        ↑
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => moveSection(sectionName, 'down')}
+                        disabled={idx === sectionOrder.length - 1}
+                        className="text-gray-400 hover:text-white text-sm disabled:opacity-30"
+                      >
+                        ↓
+                      </button>
+                    </div>
                     <button
                       type="button"
-                      onClick={() => moveSection(sectionName, 'up')}
-                      disabled={idx === 0}
-                      className="text-gray-400 hover:text-white text-sm disabled:opacity-30"
+                      onClick={() => addItem(sectionName, { ...emptyItem, order: items.length })}
+                      className="text-sm text-blue-400 hover:text-blue-300"
                     >
-                      ↑
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => moveSection(sectionName, 'down')}
-                      disabled={idx === sectionOrder.length - 1}
-                      className="text-gray-400 hover:text-white text-sm disabled:opacity-30"
-                    >
-                      ↓
+                      + Add {label.slice(0, -1)}
                     </button>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => addItem(sectionName, { ...emptyItem, order: items.length })}
-                    className="text-sm text-blue-400 hover:text-blue-300"
-                  >
-                    + Add {label.slice(0, -1)}
-                  </button>
-                </div>
 
-                {items.map((item, idx2) => {
-                  const previewKey = `${sectionName}-${idx2}`;
-                  const showPreview = previewStates[previewKey] || false;
-                  const isExperience = sectionName === 'experiences';
+                  {items.map((item, idx2) => {
+                    const previewKey = `${sectionName}-${idx2}`;
+                    const showPreview = previewStates[previewKey] || false;
+                    const isExperience = sectionName === 'experiences';
 
-                  return (
-                    <div key={idx2} className="flex gap-2 items-start mb-2">
-                      <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-2">
-                        {Object.keys(item)
-                          .filter((key) => key !== 'id' && key !== 'order')
-                          .map((key) => {
-                            const isRequired = requiredFields.includes(key);
-                            let inputType = 'text';
-                            if (key.includes('date')) inputType = 'date';
-                            if (key === 'url') inputType = 'url';
+                    return (
+                      <div key={idx2} className="flex gap-2 items-start mb-2">
+                        <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-2">
+                          {Object.keys(item)
+                            .filter((key) => key !== 'id' && key !== 'order')
+                            .map((key) => {
+                              const isRequired = requiredFields.includes(key);
+                              let inputType = 'text';
+                              if (key.includes('date')) inputType = 'date';
+                              if (key === 'url') inputType = 'url';
 
-                            if (key === 'description') {
-                              return (
-                                <div key={key} className="relative col-span-2">
-                                  <div className="flex items-center gap-2 mb-1">
-                                    <label className="text-xs text-gray-400">
-                                      {key.replace(/_/g, ' ')}
-                                      {isRequired ? ' *' : ''}
-                                    </label>
-                                    <button
-                                      type="button"
-                                      onClick={() => togglePreview(sectionName, idx2)}
-                                      className="text-xs text-blue-400 hover:text-blue-300"
-                                    >
-                                      {showPreview ? 'Hide Preview' : 'Preview'}
-                                    </button>
-                                  </div>
-                                  {showPreview ? (
-                                    <div className="w-full p-2 bg-gray-800 rounded border border-gray-600 min-h-[60px] prose prose-invert prose-sm max-w-none">
-                                      <MarkdownContent>{item[key] || ''}</MarkdownContent>
+                              if (key === 'description') {
+                                return (
+                                  <div key={key} className="relative col-span-2">
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <label className="text-xs text-gray-400">
+                                        {key.replace(/_/g, ' ')}
+                                        {isRequired ? ' *' : ''}
+                                      </label>
+                                      <button
+                                        type="button"
+                                        onClick={() => togglePreview(sectionName, idx2)}
+                                        className="text-xs text-blue-400 hover:text-blue-300"
+                                      >
+                                        {showPreview ? 'Hide Preview' : 'Preview'}
+                                      </button>
                                     </div>
-                                  ) : (
-                                    <textarea
-                                      value={item[key] || ''}
-                                      onChange={(e) => handleNestedChange(sectionName, idx2, key, e.target.value)}
-                                      className="w-full p-1 bg-gray-700 rounded border border-gray-600 text-sm"
-                                      rows="3"
-                                      placeholder={`${key.replace(/_/g, ' ')} (Markdown supported)`}
+                                    {showPreview ? (
+                                      <div className="w-full p-2 bg-gray-800 rounded border border-gray-600 min-h-[60px] prose prose-invert prose-sm max-w-none">
+                                        <MarkdownContent>{item[key] || ''}</MarkdownContent>
+                                      </div>
+                                    ) : (
+                                      <textarea
+                                        value={item[key] || ''}
+                                        onChange={(e) => handleNestedChange(sectionName, idx2, key, e.target.value)}
+                                        className="w-full p-1 bg-gray-700 rounded border border-gray-600 text-sm"
+                                        rows="3"
+                                        placeholder={`${key.replace(/_/g, ' ')} (Markdown supported)`}
+                                      />
+                                    )}
+                                  </div>
+                                );
+                              }
+
+                              if (isExperience && key === 'is_current') {
+                                return (
+                                  <div key={key} className="col-span-2 flex items-center gap-2 mt-1">
+                                    <input
+                                      type="checkbox"
+                                      checked={item.is_current || false}
+                                      onChange={(e) => handleNestedChange(sectionName, idx2, key, e.target.checked)}
+                                      className="w-4 h-4"
                                     />
-                                  )}
-                                </div>
-                              );
-                            }
+                                    <label className="text-sm text-gray-300">Currently working here</label>
+                                  </div>
+                                );
+                              }
 
-                            if (isExperience && key === 'is_current') {
                               return (
-                                <div key={key} className="col-span-2 flex items-center gap-2 mt-1">
+                                <div key={key} className="relative">
                                   <input
-                                    type="checkbox"
-                                    checked={item.is_current || false}
-                                    onChange={(e) => handleNestedChange(sectionName, idx2, key, e.target.checked)}
-                                    className="w-4 h-4"
+                                    type={inputType}
+                                    placeholder={`${key.replace(/_/g, ' ')}${isRequired ? ' *' : ''}`}
+                                    value={item[key] || ''}
+                                    onChange={(e) => handleNestedChange(sectionName, idx2, key, e.target.value)}
+                                    disabled={isExperience && key === 'end_date' && item.is_current}
+                                    className={`w-full p-1 bg-gray-700 rounded border ${
+                                      isRequired ? 'border-blue-500' : 'border-gray-600'
+                                    } text-sm ${
+                                      isExperience && key === 'end_date' && item.is_current
+                                        ? 'opacity-50 cursor-not-allowed'
+                                        : ''
+                                    }`}
                                   />
-                                  <label className="text-sm text-gray-300">Currently working here</label>
                                 </div>
                               );
-                            }
-
-                            return (
-                              <div key={key} className="relative">
-                                <input
-                                  type={inputType}
-                                  placeholder={`${key.replace(/_/g, ' ')}${isRequired ? ' *' : ''}`}
-                                  value={item[key] || ''}
-                                  onChange={(e) => handleNestedChange(sectionName, idx2, key, e.target.value)}
-                                  disabled={isExperience && key === 'end_date' && item.is_current}
-                                  className={`w-full p-1 bg-gray-700 rounded border ${
-                                    isRequired ? 'border-blue-500' : 'border-gray-600'
-                                  } text-sm ${
-                                    isExperience && key === 'end_date' && item.is_current
-                                      ? 'opacity-50 cursor-not-allowed'
-                                      : ''
-                                  }`}
-                                />
-                              </div>
-                            );
-                          })}
+                            })}
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <button
+                            type="button"
+                            onClick={() => moveItem(sectionName, idx2, 'up')}
+                            className="text-gray-400 hover:text-white text-sm"
+                            disabled={idx2 === 0}
+                          >
+                            ↑
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => moveItem(sectionName, idx2, 'down')}
+                            className="text-gray-400 hover:text-white text-sm"
+                            disabled={idx2 === items.length - 1}
+                          >
+                            ↓
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => removeItem(sectionName, idx2)}
+                            className="text-red-400 hover:text-red-300 text-sm"
+                          >
+                            ✕
+                          </button>
+                        </div>
                       </div>
-                      <div className="flex flex-col gap-1">
-                        <button
-                          type="button"
-                          onClick={() => moveItem(sectionName, idx2, 'up')}
-                          className="text-gray-400 hover:text-white text-sm"
-                          disabled={idx2 === 0}
-                        >
-                          ↑
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => moveItem(sectionName, idx2, 'down')}
-                          className="text-gray-400 hover:text-white text-sm"
-                          disabled={idx2 === items.length - 1}
-                        >
-                          ↓
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => removeItem(sectionName, idx2)}
-                          className="text-red-400 hover:text-red-300 text-sm"
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            );
-          })}
+                    );
+                  })}
+                </div>
+              );
+            })
+          )}
 
           <div className="flex justify-end gap-3">
             <button type="button" onClick={cancelEditing} className="px-4 py-2 bg-gray-600 hover:bg-gray-700 rounded-lg">
@@ -950,6 +1292,8 @@ export default function CVDetail() {
           </div>
         </form>
       </div>
+
+      {renderAddNewModal()}
     </div>
   );
 }
