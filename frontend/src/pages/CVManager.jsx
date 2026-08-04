@@ -1,11 +1,11 @@
 // frontend/src/pages/CVManager.jsx
-
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useCVData } from '../hooks/useCVData';
 import { useProfileLibrary } from '../hooks/useProfileLibrary';
 import { useHVT } from '../context/HVTContext';
 import AuthModal from '../components/AuthModal';
+import LibraryCombobox from '../components/LibraryCombobox'; // <-- NEW IMPORT
 
 export default function CVManager() {
   const { isAuthenticated, logout, user, loading: authLoading } = useHVT();
@@ -22,7 +22,6 @@ export default function CVManager() {
     setFilterTag,
   } = useCVData();
 
-  // ---- Profile Library Hook ----
   const {
     experiences,
     educations,
@@ -44,7 +43,6 @@ export default function CVManager() {
   const [showJobForm, setShowJobForm] = useState(false);
   const [formWarning, setFormWarning] = useState('');
 
-  // ---- CV Form State (now uses IDs) ----
   const [cvForm, setCvForm] = useState({
     title: '',
     full_name: '',
@@ -52,7 +50,6 @@ export default function CVManager() {
     email: '',
     phone: '',
     age: '',
-    // These will store arrays of IDs
     profile_education_ids: [],
     profile_experience_ids: [],
     profile_project_ids: [],
@@ -61,12 +58,11 @@ export default function CVManager() {
     profile_achievement_ids: [],
   });
 
-  // ---- Helper: update a specific ID list ----
   const setSectionIds = (section, ids) => {
     setCvForm(prev => ({ ...prev, [section]: ids }));
   };
 
-  // ---- "Add New" flow state (inline forms) ----
+  // ---- "Add New" flow state ----
   const [newSectionType, setNewSectionType] = useState(null);
   const [newSectionData, setNewSectionData] = useState({});
   const [addingSection, setAddingSection] = useState(false);
@@ -77,7 +73,6 @@ export default function CVManager() {
     setAddingSection(false);
   };
 
-  // ---- Handlers for adding new section items ----
   const handleAddNewSection = async (type) => {
     setAddingSection(true);
     try {
@@ -104,7 +99,6 @@ export default function CVManager() {
         default:
           return;
       }
-      // Add the new ID to the relevant list in cvForm
       const idKey = `profile_${type}_ids`;
       setCvForm(prev => ({
         ...prev,
@@ -136,7 +130,6 @@ export default function CVManager() {
         email: cvForm.email,
         phone: cvForm.phone,
         age: cvForm.age || null,
-        // Send only the ID lists
         profile_education_ids: cvForm.profile_education_ids,
         profile_experience_ids: cvForm.profile_experience_ids,
         profile_project_ids: cvForm.profile_project_ids,
@@ -147,13 +140,10 @@ export default function CVManager() {
 
       await createResume(payload);
 
-      if (formWarning) {
-        alert(formWarning);
-      }
+      if (formWarning) alert(formWarning);
 
       setShowCVForm(false);
       setFormWarning('');
-      // Reset form
       setCvForm({
         title: '',
         full_name: '',
@@ -173,7 +163,7 @@ export default function CVManager() {
     }
   };
 
-  // ---- Job Application handlers (unchanged) ----
+  // ---- Job Application handlers ----
   const [jobFormData, setJobFormData] = useState({
     job_link: '',
     company: '',
@@ -200,10 +190,7 @@ export default function CVManager() {
       const tagNames = jobFormData.tag_names
         ? jobFormData.tag_names.split(',').map(t => t.trim()).filter(Boolean)
         : [];
-      const payload = {
-        ...jobFormData,
-        tag_names: tagNames,
-      };
+      const payload = { ...jobFormData, tag_names: tagNames };
       await createApplication(payload);
       setJobFormData({
         job_link: '',
@@ -225,17 +212,13 @@ export default function CVManager() {
   const handleMarkFollowUp = async (app) => {
     if (!window.confirm(`Mark "${app.position} at ${app.company}" as "Follow-up"?`)) return;
     try {
-      await updateApplication(app.id, {
-        ...app,
-        status: 'follow_up',
-      });
+      await updateApplication(app.id, { ...app, status: 'follow_up' });
       setFilterTag(filterTag || '');
     } catch (err) {
       alert('Error updating status: ' + err.message);
     }
   };
 
-  // ---- Compute unique tags ----
   const allTags = useMemo(() => {
     const tags = new Set();
     applications.forEach(app => {
@@ -250,129 +233,7 @@ export default function CVManager() {
     logout();
   };
 
-  // ---- Loading states ----
-  if (authLoading || dataLoading || libraryLoading) {
-    return <div className="min-h-screen flex items-center justify-center bg-[#0b0e14] text-slate-100">Loading...</div>;
-  }
-
-  // ---- Combobox render helper ----
-  const renderLibraryCombobox = ({
-    label,
-    sectionKey, // e.g., 'profile_experience_ids'
-    items,      // array of library items, e.g., [{id, company, position, ...}]
-    displayKey, // how to display: e.g., (item) => `${item.position} at ${item.company}`
-    placeholder,
-    newSectionType, // e.g., 'experience'
-    required = false,
-  }) => {
-    const selectedIds = cvForm[sectionKey] || [];
-    const [searchTerm, setSearchTerm] = useState('');
-    const [isOpen, setIsOpen] = useState(false);
-    const dropdownRef = useRef(null);
-
-    // Filter items based on search
-    const filteredItems = useMemo(() => {
-      if (!searchTerm) return items;
-      const lower = searchTerm.toLowerCase();
-      return items.filter(item => {
-        const label = displayKey(item).toLowerCase();
-        return label.includes(lower);
-      });
-    }, [items, searchTerm, displayKey]);
-
-    // Toggle selection
-    const toggleItem = (id) => {
-      const current = cvForm[sectionKey] || [];
-      if (current.includes(id)) {
-        setSectionIds(sectionKey, current.filter(i => i !== id));
-      } else {
-        setSectionIds(sectionKey, [...current, id]);
-      }
-      setIsOpen(false);
-      setSearchTerm('');
-    };
-
-    // Click outside to close dropdown
-    useEffect(() => {
-      const handleClickOutside = (e) => {
-        if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
-          setIsOpen(false);
-        }
-      };
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, []);
-
-    return (
-      <div ref={dropdownRef} className="mb-3">
-        <label className="block text-sm font-medium mb-1">
-          {label} {required && <span className="text-red-400">*</span>}
-        </label>
-        <div className="relative">
-          {/* Selected items chips */}
-          <div className="flex flex-wrap gap-1 p-2 bg-gray-700 rounded border border-gray-600 min-h-[42px]">
-            {selectedIds.map(id => {
-              const item = items.find(i => i.id === id);
-              if (!item) return null;
-              return (
-                <span key={id} className="bg-blue-600/30 text-blue-200 px-2 py-0.5 rounded flex items-center gap-1 text-sm">
-                  {displayKey(item)}
-                  <button
-                    type="button"
-                    onClick={() => toggleItem(id)}
-                    className="text-xs hover:text-red-300"
-                  >
-                    ✕
-                  </button>
-                </span>
-              );
-            })}
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              onFocus={() => setIsOpen(true)}
-              placeholder={selectedIds.length === 0 ? placeholder : ''}
-              className="flex-1 bg-transparent border-0 outline-none text-sm min-w-[100px]"
-            />
-          </div>
-          {/* Dropdown list */}
-          {isOpen && (
-            <div className="absolute z-10 w-full mt-1 bg-gray-800 border border-gray-600 rounded shadow-lg max-h-48 overflow-y-auto">
-              {filteredItems.length === 0 ? (
-                <div className="p-2 text-sm text-gray-400">No items found</div>
-              ) : (
-                filteredItems.map(item => (
-                  <div
-                    key={item.id}
-                    className={`p-2 hover:bg-gray-700 cursor-pointer text-sm flex justify-between items-center ${
-                      selectedIds.includes(item.id) ? 'bg-blue-900/30' : ''
-                    }`}
-                    onClick={() => toggleItem(item.id)}
-                  >
-                    <span>{displayKey(item)}</span>
-                    {selectedIds.includes(item.id) && <span className="text-blue-400">✓</span>}
-                  </div>
-                ))
-              )}
-            </div>
-          )}
-        </div>
-        <button
-          type="button"
-          onClick={() => {
-            setNewSectionType(newSectionType);
-            setNewSectionData({});
-          }}
-          className="mt-1 text-sm text-blue-400 hover:text-blue-300"
-        >
-          + Add new {label.toLowerCase()}
-        </button>
-      </div>
-    );
-  };
-
-  // ---- Inline "Add New" modal ----
+  // ---- Render "Add New" modal ----
   const renderAddNewModal = () => {
     if (!newSectionType) return null;
 
@@ -486,6 +347,11 @@ export default function CVManager() {
     );
   };
 
+  // ---- Loading states ----
+  if (authLoading || dataLoading || libraryLoading) {
+    return <div className="min-h-screen flex items-center justify-center bg-[#0b0e14] text-slate-100">Loading...</div>;
+  }
+
   return (
     <div className="max-w-6xl mx-auto p-6 bg-[#0b0e14] text-slate-100">
       {/* Header */}
@@ -498,10 +364,7 @@ export default function CVManager() {
             </button>
           ) : (
             <div className="flex items-center gap-3">
-              <Link
-                to="/cv/insights"
-                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 rounded-lg font-semibold transition text-sm"
-              >
+              <Link to="/cv/insights" className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 rounded-lg font-semibold transition text-sm">
                 📊 Insights
               </Link>
               <span className="text-gray-300 text-sm">Hi, {user?.email || 'User'}</span>
@@ -528,10 +391,7 @@ export default function CVManager() {
             ))}
           </select>
           {filterTag && (
-            <button
-              onClick={() => setFilterTag('')}
-              className="text-xs text-red-400 hover:text-red-300"
-            >
+            <button onClick={() => setFilterTag('')} className="text-xs text-red-400 hover:text-red-300">
               Clear
             </button>
           )}
@@ -637,64 +497,112 @@ export default function CVManager() {
               </div>
             </div>
 
-            {/* ---- Library Comboboxes ---- */}
+            {/* ---- Library Comboboxes (using the new component) ---- */}
             <div className="border border-gray-700 p-3 rounded">
               <h3 className="text-lg font-medium mb-2">Sections from your profile library</h3>
               <p className="text-xs text-gray-400 mb-3">Select existing entries or add new ones.</p>
 
-              {renderLibraryCombobox({
-                label: 'Work Experience',
-                sectionKey: 'profile_experience_ids',
-                items: experiences,
-                displayKey: (exp) => `${exp.position} at ${exp.company}`,
-                placeholder: 'Search experiences...',
-                newSectionType: 'experience',
-              })}
+              <LibraryCombobox
+                label="Work Experience"
+                selectedIds={cvForm.profile_experience_ids}
+                items={experiences}
+                displayKey={(exp) => `${exp.position} at ${exp.company}`}
+                placeholder="Search experiences..."
+                onToggle={(id) => {
+                  const current = cvForm.profile_experience_ids || [];
+                  if (current.includes(id)) {
+                    setSectionIds('profile_experience_ids', current.filter(i => i !== id));
+                  } else {
+                    setSectionIds('profile_experience_ids', [...current, id]);
+                  }
+                }}
+                onAddNew={() => { setNewSectionType('experience'); setNewSectionData({}); }}
+              />
 
-              {renderLibraryCombobox({
-                label: 'Education',
-                sectionKey: 'profile_education_ids',
-                items: educations,
-                displayKey: (edu) => `${edu.degree} at ${edu.institution}`,
-                placeholder: 'Search education...',
-                newSectionType: 'education',
-              })}
+              <LibraryCombobox
+                label="Education"
+                selectedIds={cvForm.profile_education_ids}
+                items={educations}
+                displayKey={(edu) => `${edu.degree} at ${edu.institution}`}
+                placeholder="Search education..."
+                onToggle={(id) => {
+                  const current = cvForm.profile_education_ids || [];
+                  if (current.includes(id)) {
+                    setSectionIds('profile_education_ids', current.filter(i => i !== id));
+                  } else {
+                    setSectionIds('profile_education_ids', [...current, id]);
+                  }
+                }}
+                onAddNew={() => { setNewSectionType('education'); setNewSectionData({}); }}
+              />
 
-              {renderLibraryCombobox({
-                label: 'Projects',
-                sectionKey: 'profile_project_ids',
-                items: projects,
-                displayKey: (proj) => proj.name,
-                placeholder: 'Search projects...',
-                newSectionType: 'project',
-              })}
+              <LibraryCombobox
+                label="Projects"
+                selectedIds={cvForm.profile_project_ids}
+                items={projects}
+                displayKey={(proj) => proj.name}
+                placeholder="Search projects..."
+                onToggle={(id) => {
+                  const current = cvForm.profile_project_ids || [];
+                  if (current.includes(id)) {
+                    setSectionIds('profile_project_ids', current.filter(i => i !== id));
+                  } else {
+                    setSectionIds('profile_project_ids', [...current, id]);
+                  }
+                }}
+                onAddNew={() => { setNewSectionType('project'); setNewSectionData({}); }}
+              />
 
-              {renderLibraryCombobox({
-                label: 'Skills',
-                sectionKey: 'profile_skill_ids',
-                items: skills,
-                displayKey: (skill) => skill.name + (skill.proficiency ? ` (${skill.proficiency})` : ''),
-                placeholder: 'Search skills...',
-                newSectionType: 'skill',
-              })}
+              <LibraryCombobox
+                label="Skills"
+                selectedIds={cvForm.profile_skill_ids}
+                items={skills}
+                displayKey={(skill) => skill.name + (skill.proficiency ? ` (${skill.proficiency})` : '')}
+                placeholder="Search skills..."
+                onToggle={(id) => {
+                  const current = cvForm.profile_skill_ids || [];
+                  if (current.includes(id)) {
+                    setSectionIds('profile_skill_ids', current.filter(i => i !== id));
+                  } else {
+                    setSectionIds('profile_skill_ids', [...current, id]);
+                  }
+                }}
+                onAddNew={() => { setNewSectionType('skill'); setNewSectionData({}); }}
+              />
 
-              {renderLibraryCombobox({
-                label: 'Languages',
-                sectionKey: 'profile_language_ids',
-                items: languages,
-                displayKey: (lang) => lang.name + (lang.proficiency ? ` (${lang.proficiency})` : ''),
-                placeholder: 'Search languages...',
-                newSectionType: 'language',
-              })}
+              <LibraryCombobox
+                label="Languages"
+                selectedIds={cvForm.profile_language_ids}
+                items={languages}
+                displayKey={(lang) => lang.name + (lang.proficiency ? ` (${lang.proficiency})` : '')}
+                placeholder="Search languages..."
+                onToggle={(id) => {
+                  const current = cvForm.profile_language_ids || [];
+                  if (current.includes(id)) {
+                    setSectionIds('profile_language_ids', current.filter(i => i !== id));
+                  } else {
+                    setSectionIds('profile_language_ids', [...current, id]);
+                  }
+                }}
+                onAddNew={() => { setNewSectionType('language'); setNewSectionData({}); }}
+              />
 
-              {renderLibraryCombobox({
-                label: 'Achievements',
-                sectionKey: 'profile_achievement_ids',
-                items: achievements,
-                displayKey: (ach) => ach.description.length > 60 ? ach.description.slice(0, 60) + '...' : ach.description,
-                placeholder: 'Search achievements...',
-                newSectionType: 'achievement',
-              })}
+              <LibraryCombobox
+                label="Achievements"
+                selectedIds={cvForm.profile_achievement_ids}
+                items={achievements}
+                displayKey={(ach) => ach.description.length > 60 ? ach.description.slice(0, 60) + '...' : ach.description}
+                placeholder="Search achievements..."
+                onToggle={(id) => {
+                  const current = cvForm.profile_achievement_ids || [];
+                  if (current.includes(id)) {
+                    setSectionIds('profile_achievement_ids', current.filter(i => i !== id));
+                  } else {
+                    setSectionIds('profile_achievement_ids', [...current, id]);
+                  }
+                }}
+                onAddNew={() => { setNewSectionType('achievement'); setNewSectionData({}); }}
+              />
             </div>
 
             <button type="submit" className="px-6 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg font-semibold transition">
@@ -723,7 +631,7 @@ export default function CVManager() {
         )}
       </div>
 
-      {/* ---- JOB APPLICATION SECTION (unchanged) ---- */}
+      {/* ---- JOB APPLICATION SECTION ---- */}
       <div>
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-semibold">Your Job Applications ({applications.length})</h2>
