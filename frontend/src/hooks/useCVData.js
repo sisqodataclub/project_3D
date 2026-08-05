@@ -1,5 +1,5 @@
-// src/hooks/useCVData.js
-import { useState, useEffect } from 'react';
+// frontend/src/hooks/useCVData.js
+import { useState, useEffect, useCallback } from 'react';
 import { useHVT } from '../context/HVTContext';
 
 const API_BASE = 'https://api.franciscodes.com/cv/api';
@@ -12,7 +12,7 @@ export function useCVData() {
   const [hasGuestData, setHasGuestData] = useState(false);
   const [filterTag, setFilterTag] = useState('');
 
-  // Load data based on auth state
+  // ---- Load data based on auth state ----
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
@@ -56,8 +56,8 @@ export function useCVData() {
     loadData();
   }, [isAuthenticated, accessToken, filterTag]);
 
-  // ---- Get a single resume ----
-  const getResume = async (id) => {
+  // ---- Get a single resume (memoized) ----
+  const getResume = useCallback(async (id) => {
     if (!isAuthenticated) throw new Error('Not authenticated');
     const res = await fetch(`${API_BASE}/resumes/${id}/`, {
       headers: { Authorization: `Bearer ${accessToken}` },
@@ -67,10 +67,10 @@ export function useCVData() {
       throw new Error(error.detail || 'Failed to fetch resume');
     }
     return await res.json();
-  };
+  }, [isAuthenticated, accessToken]);
 
-  // ---- Create Resume ----
-  const createResume = async (data) => {
+  // ---- Other functions (create, update, delete) remain, but we can also memoize them if needed ----
+  const createResume = useCallback(async (data) => {
     if (isAuthenticated) {
       const res = await fetch(`${API_BASE}/resumes/`, {
         method: 'POST',
@@ -101,10 +101,9 @@ export function useCVData() {
       setHasGuestData(true);
       return newResume;
     }
-  };
+  }, [isAuthenticated, accessToken]);
 
-  // ---- Update Resume ----
-  const updateResume = async (id, data) => {
+  const updateResume = useCallback(async (id, data) => {
     if (!isAuthenticated) throw new Error('Not authenticated');
     const res = await fetch(`${API_BASE}/resumes/${id}/`, {
       method: 'PUT',
@@ -121,10 +120,9 @@ export function useCVData() {
     const updated = await res.json();
     setResumes(prev => prev.map(r => r.id === id ? updated : r));
     return updated;
-  };
+  }, [isAuthenticated, accessToken]);
 
-  // ---- Delete Resume ----
-  const deleteResume = async (id) => {
+  const deleteResume = useCallback(async (id) => {
     if (!isAuthenticated) throw new Error('Not authenticated');
     const res = await fetch(`${API_BASE}/resumes/${id}/`, {
       method: 'DELETE',
@@ -137,10 +135,10 @@ export function useCVData() {
       throw new Error(error.detail || 'Failed to delete resume');
     }
     setResumes(prev => prev.filter(r => r.id !== id));
-  };
+  }, [isAuthenticated, accessToken]);
 
-  // ---- Create Application ----
-  const createApplication = async (data) => {
+  // ---- Application functions (similarly memoized) ----
+  const createApplication = useCallback(async (data) => {
     if (isAuthenticated) {
       const res = await fetch(`${API_BASE}/applications/`, {
         method: 'POST',
@@ -171,10 +169,9 @@ export function useCVData() {
       setHasGuestData(true);
       return newApp;
     }
-  };
+  }, [isAuthenticated, accessToken]);
 
-  // ---- Update Application ----
-  const updateApplication = async (id, data) => {
+  const updateApplication = useCallback(async (id, data) => {
     if (!isAuthenticated) throw new Error('Not authenticated');
     const res = await fetch(`${API_BASE}/applications/${id}/`, {
       method: 'PUT',
@@ -191,10 +188,10 @@ export function useCVData() {
     const updated = await res.json();
     setApplications(prev => prev.map(a => a.id === id ? updated : a));
     return updated;
-  };
+  }, [isAuthenticated, accessToken]);
 
   // ---- Migrate Guest Data ----
-  const migrateGuestData = async () => {
+  const migrateGuestData = useCallback(async () => {
     if (!isAuthenticated) return;
     const guestR = JSON.parse(localStorage.getItem('guest_resumes') || '[]');
     const guestA = JSON.parse(localStorage.getItem('guest_applications') || '[]');
@@ -239,7 +236,7 @@ export function useCVData() {
       console.error(e);
       throw new Error('Migration failed');
     }
-  };
+  }, [isAuthenticated, accessToken]);
 
   return {
     resumes,
@@ -247,7 +244,7 @@ export function useCVData() {
     loading,
     filterTag,
     setFilterTag,
-    getResume,           // <-- NEW
+    getResume,
     createResume,
     updateResume,
     deleteResume,

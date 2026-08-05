@@ -1,5 +1,5 @@
 // frontend/src/pages/CVDetail.jsx
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -41,7 +41,7 @@ export default function CVDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { accessToken, isAuthenticated, loading: authLoading } = useHVT();
-  const { updateResume, deleteResume, createResume, getResume } = useCVData();
+  const { getResume, updateResume, deleteResume, createResume } = useCVData();
   const {
     experiences,
     educations,
@@ -72,10 +72,13 @@ export default function CVDetail() {
   const [progressMessage, setProgressMessage] = useState('');
   const pollingRef = useRef(null);
 
-  // ---- "Add New" modal state for edit mode ----
+  // ---- "Add New" modal state ----
   const [newSectionType, setNewSectionType] = useState(null);
   const [newSectionData, setNewSectionData] = useState({});
   const [addingSection, setAddingSection] = useState(false);
+
+  // ---- Ref to prevent concurrent fetches ----
+  const fetchingRef = useRef(false);
 
   // ---- Helper: determine if resume uses profile library ----
   const usesProfile = (res) => {
@@ -87,33 +90,45 @@ export default function CVDetail() {
     );
   };
 
-  // ---- Fetch resume ----
+  // ---- Fetch resume (memoized) ----
+  const fetchResume = useCallback(async () => {
+    if (!isAuthenticated || !accessToken) {
+      setError('Please log in to view this resume.');
+      setLoading(false);
+      return;
+    }
+    if (fetchingRef.current) return;
+    fetchingRef.current = true;
+
+    try {
+      const data = await getResume(id);
+      if (!data.section_order || data.section_order.length === 0) {
+        data.section_order = [...DEFAULT_SECTIONS];
+      }
+      setResume(data);
+      setEditData(JSON.parse(JSON.stringify(data)));
+      setAnalysisResult(null);
+      setProgressMessage('');
+      setError(null);
+    } catch (e) {
+      setError(e.message || 'Failed to load resume.');
+    } finally {
+      setLoading(false);
+      fetchingRef.current = false;
+    }
+  }, [id, isAuthenticated, accessToken, getResume]);
+
+  // ---- Load resume on mount and when dependencies change ----
   useEffect(() => {
-    const fetchResume = async () => {
-      if (authLoading) return;
-      if (!isAuthenticated || !accessToken) {
-        setError('Please log in to view this resume.');
-        setLoading(false);
-        return;
-      }
-      try {
-        const data = await getResume(id);
-        if (!data.section_order || data.section_order.length === 0) {
-          data.section_order = [...DEFAULT_SECTIONS];
-        }
-        setResume(data);
-        setEditData(JSON.parse(JSON.stringify(data)));
-        setAnalysisResult(null);
-        setProgressMessage('');
-        setError(null);
-      } catch (e) {
-        setError(e.message || 'Failed to load resume.');
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchResume();
-  }, [id, isAuthenticated, accessToken, authLoading, getResume]);
+  }, [fetchResume]); // fetchResume is stable (useCallback)
+
+  // ---- Cleanup polling on unmount ----
+  useEffect(() => {
+    return () => {
+      if (pollingRef.current) clearTimeout(pollingRef.current);
+    };
+  }, []);
 
   // ---- AI Analysis (unchanged) ----
   const handleAnalyze = async () => {
@@ -207,12 +222,6 @@ export default function CVDetail() {
     }
   };
 
-  useEffect(() => {
-    return () => {
-      if (pollingRef.current) clearTimeout(pollingRef.current);
-    };
-  }, []);
-
   // ---- Edit mode handlers ----
   const enableEditing = () => {
     const data = JSON.parse(JSON.stringify(resume));
@@ -280,12 +289,12 @@ export default function CVDetail() {
     setEditData({ ...editData, section_order: newOrder });
   };
 
-  // ---- Set section IDs in editData (for profile library) ----
+  // ---- Set section IDs (for profile library) ----
   const setSectionIds = (sectionKey, ids) => {
     setEditData(prev => ({ ...prev, [sectionKey]: ids }));
   };
 
-  // ---- Add new section to library (for edit mode) ----
+  // ---- Add new section to library ----
   const handleAddNewSection = async (type) => {
     setAddingSection(true);
     try {
@@ -315,7 +324,7 @@ export default function CVDetail() {
       const idKey = `profile_${type}_ids`;
       setEditData(prev => ({
         ...prev,
-        [idKey]: [...prev[idKey], result.id],
+        [idKey]: [...(prev[idKey] || []), result.id],
       }));
       setNewSectionType(null);
       setNewSectionData({});
@@ -334,7 +343,6 @@ export default function CVDetail() {
       const usesProfileData = usesProfile(editData);
 
       if (usesProfileData) {
-        // For profile-based resumes, send only ID lists and basic info
         payload = {
           title: editData.title || null,
           full_name: editData.full_name,
@@ -351,7 +359,6 @@ export default function CVDetail() {
           section_order: editData.section_order || [...DEFAULT_SECTIONS],
         };
       } else {
-        // Legacy nested data – keep old logic
         const filterValid = (items, requiredFields) => {
           return items
             .filter((item) => {
@@ -381,12 +388,12 @@ export default function CVDetail() {
           email: editData.email,
           phone: editData.phone,
           age: editData.age || null,
-          educations: filterValid(editData.educations, ['institution']),
-          experiences: filterValid(editData.experiences, ['company']),
-          projects: filterValid(editData.projects, ['name']),
-          skills: filterValid(editData.skills, ['name']),
-          languages: filterValid(editData.languages, ['name']),
-          achievements: filterValid(editData.achievements, ['description']),
+          educations: filterValid(editData.educations || [], ['institution']),
+          experiences: filterValid(editData.experiences || [], ['company']),
+          projects: filterValid(editData.projects || [], ['name']),
+          skills: filterValid(editData.skills || [], ['name']),
+          languages: filterValid(editData.languages || [], ['name']),
+          achievements: filterValid(editData.achievements || [], ['description']),
           section_order: editData.section_order || [...DEFAULT_SECTIONS],
         };
       }
@@ -396,6 +403,8 @@ export default function CVDetail() {
       setEditData(updated);
       setIsEditing(false);
       setPreviewStates({});
+      // Re-fetch to ensure consistency (optional)
+      await fetchResume();
     } catch (err) {
       alert('Error updating resume: ' + err.message);
     } finally {
@@ -589,7 +598,6 @@ export default function CVDetail() {
       const ids = resume[sectionKey] || [];
       return libraryItems.filter(item => ids.includes(item.id));
     } else {
-      // legacy
       const legacyMap = {
         profile_education_ids: 'educations',
         profile_experience_ids: 'experiences',
@@ -603,9 +611,8 @@ export default function CVDetail() {
     }
   };
 
-  // ---- Render a section in view mode (adapted for both profile and legacy) ----
+  // ---- Render a section in view mode ----
   const renderDisplaySection = (sectionName) => {
-    // For profile sections, we need to map sectionName to the correct profile key and library items
     const profileKeyMap = {
       educations: { key: 'profile_education_ids', items: educations },
       experiences: { key: 'profile_experience_ids', items: experiences },
@@ -975,7 +982,7 @@ export default function CVDetail() {
           </div>
 
           {isProfile ? (
-            // ---- Profile‑based edit: use LibraryCombobox ----
+            // ---- Profile‑based edit ----
             <div className="border border-gray-700 p-4 rounded">
               <h3 className="text-lg font-medium mb-3">Sections from your profile library</h3>
               <p className="text-xs text-gray-400 mb-3">Select existing entries or add new ones.</p>
@@ -1083,7 +1090,7 @@ export default function CVDetail() {
               />
             </div>
           ) : (
-            // ---- Legacy nested edit (original dynamic forms) ----
+            // ---- Legacy nested edit ----
             sectionOrder.map((sectionName, idx) => {
               const label = SECTION_LABELS[sectionName] || sectionName;
               const items = editData[sectionName] || [];
